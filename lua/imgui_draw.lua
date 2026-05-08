@@ -667,16 +667,14 @@ function ImFontAtlasTextureBlockCopy(src_tex, src_x, src_y, dst_tex, dst_x, dst_
     end
 end
 
---- @param atlas ImFontAtlas
 --- @param tex   ImTextureData
 --- @param x     int
 --- @param y     int
 --- @param w     int
 --- @param h     int
-function ImFontAtlasTextureBlockQueueUpload(atlas, tex, x, y, w, h)
+local function ImTextureDataQueueUpload(tex, x, y, w, h)
     IM_ASSERT(tex.Status ~= ImTextureStatus.WantDestroy and tex.Status ~= ImTextureStatus.Destroyed)
     IM_ASSERT(x >= 0 and x <= 0xFFFF and y >= 0 and y <= 0xFFFF and w >= 0 and x + w <= 0x10000 and h >= 0 and y + h <= 0x10000)
-    -- IM_UNUSED(atlas)
 
     local req = ImTextureRect(x, y, w, h) -- (unsigned short)
     local new_x1 = ImMax(tex.UpdateRect.w == 0 and 0 or tex.UpdateRect.x + tex.UpdateRect.w, req.x + req.w)
@@ -689,12 +687,22 @@ function ImFontAtlasTextureBlockQueueUpload(atlas, tex, x, y, w, h)
     tex.UsedRect.y = ImMin(tex.UsedRect.y, req.y)
     tex.UsedRect.w = (ImMax(tex.UsedRect.x + tex.UsedRect.w, req.x + req.w) - tex.UsedRect.x) -- (unsigned short)
     tex.UsedRect.h = (ImMax(tex.UsedRect.y + tex.UsedRect.h, req.y + req.h) - tex.UsedRect.y) -- (unsigned short)
-    atlas.TexIsBuilt = false
 
     if (tex.Status == ImTextureStatus.OK or tex.Status == ImTextureStatus.WantUpdates) then
         tex.Status = ImTextureStatus.WantUpdates
         tex.Updates:push_back(req)
     end
+end
+
+--- @param atlas ImFontAtlas
+--- @param tex   ImTextureData
+--- @param x     int
+--- @param y     int
+--- @param w     int
+--- @param h     int
+function ImFontAtlasTextureBlockQueueUpload(atlas, tex, x, y, w, h)
+    ImTextureDataQueueUpload(tex, x, y, w, h)
+    atlas.TexIsBuilt = false
 end
 
 --- @param atlas      ImFontAtlas
