@@ -1049,7 +1049,7 @@ function ImGui.IsMouseDragPastThreshold(button, lock_threshold)
     if lock_threshold < 0.0 then
         lock_threshold = g.IO.MouseDragThreshold
     end
-    return g.IO.MouseDragMaxDistanceSqr[button + 1] >= lock_threshold * lock_threshold -- FIXME: when button becomes 1-based, update this
+    return g.IO.MouseDragMaxDistanceSqr[button] >= lock_threshold * lock_threshold
 end
 
 --- @param button          ImGuiMouseButton
@@ -2920,7 +2920,8 @@ function ImGui.IsAnyMouseDown()
     return false
 end
 
---- bool ImGui::IsMouseDown
+--- @param button    ImGuiMouseButton
+--- @param owner_id? ImGuiID
 function ImGui.IsMouseDown(button, owner_id)
     if owner_id == nil then owner_id = ImGuiKeyOwner_Any end
 
