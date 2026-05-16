@@ -7693,7 +7693,7 @@ function ImGui.BeginPopupMenuEx(id, label, extra_window_flags)
         return false
     end
 
-    if bit.band(extra_window_flags, ImGuiWindowFlags.ChildWindow) ~= 0 or bit.band(extra_window_flags, ImGuiWindowFlags.AlwaysAutoResize) ~= 0 then
+    if bit.band(extra_window_flags, ImGuiWindowFlags.ChildWindow) ~= 0 and bit.band(extra_window_flags, ImGuiWindowFlags.AlwaysAutoResize) ~= 0 then
         if bit.band(g.NextWindowData.HasFlags, ImGuiNextWindowDataFlags.HasChildFlags) ~= 0 then
             g.NextWindowData.ChildFlags = bit.bor(g.NextWindowData.ChildFlags, ImGuiChildFlags.AlwaysAutoResize)
         else
