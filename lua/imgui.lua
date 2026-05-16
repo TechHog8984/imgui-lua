@@ -4719,8 +4719,9 @@ function ImGui.UpdateMouseMovingWindowEndFrame()
             hovered_root = nil
         end
         local is_closed_popup = hovered_root and (bit.band(hovered_root.Flags, ImGuiWindowFlags.Popup) ~= 0) and not ImGui.IsPopupOpen(hovered_root.PopupId, ImGuiPopupFlags.AnyPopupLevel)
+        local is_queued_focus_request = g.NavMoveSubmitted and (bit.band(g.NavMoveFlags, ImGuiNavMoveFlags.FocusApi) ~= 0)
 
-        if hovered_window ~= nil and not is_closed_popup then
+        if hovered_window ~= nil and not is_closed_popup and not is_queued_focus_request then
             StartMouseMovingWindow(hovered_window)
 
             -- Cancel moving if clicked outside of title bar
