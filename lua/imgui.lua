@@ -4711,7 +4711,7 @@ function ImGui.UpdateMouseMovingWindowEndFrame()
 
     local hovered_window = g.HoveredWindow
 
-    if g.IO.MouseClicked[0] then
+    if ImGui.IsMouseClickedEx(0, ImGuiInputFlags.None, ImGuiKeyOwner_NoOwner) then
         local hovered_root
         if hovered_window then
             hovered_root = hovered_window.RootWindow
@@ -4746,7 +4746,7 @@ function ImGui.UpdateMouseMovingWindowEndFrame()
     -- With right mouse button we close popups without changing focus based on where the mouse is aimed
     -- Instead, focus will be restored to the window under the bottom-most closed popup.
     -- (The left mouse button path calls FocusWindow on the hovered window, which will lead NewFrame->ClosePopupsOverWindow to trigger)
-    if g.IO.MouseClicked[1] and g.HoveredId == 0 then
+    if g.HoveredId == 0 and ImGui.IsMouseClickedEx(1, ImGuiInputFlags.None, ImGuiKeyOwner_NoOwner) then
         -- Find the top-most window between HoveredWindow and the top-most Modal Window.
         -- This is where we can trim the popup stack.
         local modal = ImGui.GetTopMostPopupModal()
