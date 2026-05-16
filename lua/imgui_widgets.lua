@@ -1162,15 +1162,7 @@ function ImGui.Checkbox(label, v)
 
     local label_pos = ImVec2(check_bb.Max.x + style.ItemInnerSpacing.x, check_bb.Min.y + style.FramePadding.y)
     if g.LogEnabled then
-        -- local log_text
-        -- if mixed_value then
-        --     log_text = "[~]"
-        -- elseif v then
-        --     log_text = "[x]"
-        -- else
-        --     log_text = "[ ]"
-        -- end
-        -- ImGui.LogRenderedText(label_pos, log_text)
+        -- ImGui.LogRenderedText(label_pos, mixed_value and "[~]" or (v and "[x]" or "[ ]"))
     end
 
     if is_visible and label_size.x > 0.0 then
@@ -6881,7 +6873,7 @@ function ImGui.BeginMenuEx(label, icon, enabled)
 
     local pressed
 
-    local selectable_flags = bit.bor(ImGuiSelectableFlags.NoHoldingActiveID, ImGuiSelectableFlags.NoSetKeyOwner, ImGuiSelectableFlags.SelectOnClick, ImGuiSelectableFlags.NoAutoClosePopups)
+    local selectable_flags = bit.bor(ImGuiSelectableFlags.SelectOnClick, ImGuiSelectableFlags.NoAutoClosePopups)
     local offsets = window.DC.MenuColumns
     if window.DC.LayoutType == ImGuiLayoutType.Horizontal then
         window.DC.CursorPos.x = window.DC.CursorPos.x + IM_TRUNC(style.ItemSpacing.x * 0.5)
@@ -6913,6 +6905,11 @@ function ImGui.BeginMenuEx(label, icon, enabled)
 
     if not enabled then
         ImGui.EndDisabled()
+    end
+
+    if g.ActiveId == id and g.HoveredId ~= id and g.ActiveIdSource == ImGuiInputSource.Mouse and ImGui.IsMouseDragging(0) then
+        ImGui.ClearActiveID()
+        ImGui.SetKeyOwner(ImGuiKey.MouseLeft, ImGuiKeyOwner.NoOwner)
     end
 
     local hovered = g.HoveredId == id and enabled and not g.NavHighlightItemUnderNav
@@ -6989,6 +6986,10 @@ function ImGui.BeginMenuEx(label, icon, enabled)
 
     -- IMGUI_TEST_ENGINE_ITEM_INFO(id, label, g.LastItemData.StatusFlags | ImGuiItemStatusFlags_Openable | (menu_is_open ? ImGuiItemStatusFlags_Opened : 0))
     ImGui.PopID()
+
+    if g.ActiveId == id and want_open then
+        g.ActiveIdNoClearOnFocusLoss = true
+    end
 
     if want_open and not menu_is_open and g.OpenPopupStack.Size > g.BeginPopupStack.Size then
         ImGui.OpenPopup(label)
@@ -7078,7 +7079,7 @@ function ImGui.MenuItemEx(label, icon, shortcut, selected, enabled)
 
     local pressed
 
-    local selectable_flags = bit.bor(ImGuiSelectableFlags.SelectOnRelease, ImGuiSelectableFlags.NoSetKeyOwner, ImGuiSelectableFlags.SetNavIdOnHover)
+    local selectable_flags = bit.bor(ImGuiSelectableFlags.SelectOnRelease, ImGuiSelectableFlags.SetNavIdOnHover)
     local offsets = window.DC.MenuColumns
     if window.DC.LayoutType == ImGuiLayoutType.Horizontal then
         window.DC.CursorPos.x = window.DC.CursorPos.x + IM_TRUNC(style.ItemSpacing.x * 0.5)
@@ -7122,6 +7123,14 @@ function ImGui.MenuItemEx(label, icon, shortcut, selected, enabled)
             end
         end
     end
+
+    local id = g.LastItemData.ID
+    if g.ActiveId == id and g.HoveredId ~= id and g.ActiveIdSource == ImGuiInputSource.Mouse and ImGui.IsMouseDragging(0) then
+        ImGui.ClearActiveID()
+        ImGui.SetKeyOwner(ImGuiKey.MouseLeft, ImGuiKeyOwner.NoOwner)
+    end
+
+    -- IMGUI_TEST_ENGINE_ITEM_INFO()
 
     if not enabled then
         ImGui.EndDisabled()
