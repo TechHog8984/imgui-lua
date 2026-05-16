@@ -7693,6 +7693,15 @@ function ImGui.BeginPopupMenuEx(id, label, extra_window_flags)
         return false
     end
 
+    if bit.band(extra_window_flags, ImGuiWindowFlags.ChildWindow) ~= 0 or bit.band(extra_window_flags, ImGuiWindowFlags.AlwaysAutoResize) ~= 0 then
+        if bit.band(g.NextWindowData.HasFlags, ImGuiNextWindowDataFlags.HasChildFlags) ~= 0 then
+            g.NextWindowData.ChildFlags = bit.bor(g.NextWindowData.ChildFlags, ImGuiChildFlags.AlwaysAutoResize)
+        else
+            g.NextWindowData.ChildFlags = ImGuiChildFlags.AlwaysAutoResize
+        end
+        g.NextWindowData.HasFlags = bit.bor(g.NextWindowData.HasFlags, ImGuiNextWindowDataFlags.HasChildFlags)
+    end
+
     IM_ASSERT(bit.band(extra_window_flags, ImGuiWindowFlags.ChildMenu) ~= 0)
     local name = ImFormatString("%s###Menu_%02d", label, g.BeginMenuDepth)
     local is_open
