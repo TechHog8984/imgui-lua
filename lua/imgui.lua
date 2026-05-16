@@ -8285,7 +8285,7 @@ function ImGui.NavUpdate()
     io.WantSetMousePos = false
 
     local nav_gamepad_active = bit.band(io.ConfigFlags, ImGuiConfigFlags.NavEnableGamepad) ~= 0 and bit.band(io.BackendFlags, ImGuiBackendFlags.HasGamepad) ~= 0
-    if nav_gamepad_active then
+    if nav_gamepad_active and g.NavInputSource ~= ImGuiInputSource.Gamepad then
         for _, key in ipairs(nav_gamepad_keys_to_change_source) do
             if ImGui.IsKeyDown(key) then
                 g.NavInputSource = ImGuiInputSource.Gamepad
@@ -8294,7 +8294,7 @@ function ImGui.NavUpdate()
     end
 
     local nav_keyboard_active = bit.band(io.ConfigFlags, ImGuiConfigFlags.NavEnableKeyboard) ~= 0
-    if nav_keyboard_active then
+    if nav_keyboard_active and g.NavInputSource ~= ImGuiInputSource.Keyboard then
         for _, key in ipairs(nav_keyboard_keys_to_change_source) do
             if ImGui.IsKeyDown(key) then
                 g.NavInputSource = ImGuiInputSource.Keyboard
