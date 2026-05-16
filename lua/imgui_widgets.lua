@@ -1144,18 +1144,9 @@ function ImGui.Checkbox(label, v)
     if is_visible then
         ImGui.RenderNavCursor(total_bb, id)
 
-        local frame_col
-        if held and hovered then
-            frame_col = ImGui.GetColorU32(ImGuiCol.FrameBgActive)
-        elseif hovered then
-            frame_col = ImGui.GetColorU32(ImGuiCol.FrameBgHovered)
-        else
-            frame_col = ImGui.GetColorU32(ImGuiCol.FrameBg)
-        end
-
-        ImGui.RenderFrame(check_bb.Min, check_bb.Max, frame_col, true, style.FrameRounding)
-
+        local bg_col = ImGui.GetColorU32((held and hovered) and ImGuiCol.FrameBgActive or (hovered and ImGuiCol.FrameBgHovered or ((mixed_value or checked) and ImGuiCol.CheckboxSelectedBg or ImGuiCol.FrameBg)))
         local check_col = ImGui.GetColorU32(ImGuiCol.CheckMark)
+        ImGui.RenderFrame(check_bb.Min, check_bb.Max, bg_col, true, style.FrameRounding)
 
         if mixed_value then
             -- Undocumented tristate/mixed/indeterminate checkbox (#2644)
