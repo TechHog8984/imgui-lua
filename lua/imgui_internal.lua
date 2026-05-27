@@ -1189,6 +1189,7 @@ function ImGuiStyle()
         ColorMarkerSize = 3.0,
         ColorButtonPosition = ImGuiDir.Right,
 
+        InputTextCursorSize = 1.0,
         SeparatorSize           = 1.0,
         SeparatorTextBorderSize = 3.0,
         SeparatorTextAlign      = ImVec2(0.0, 0.5),

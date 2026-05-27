@@ -220,6 +220,7 @@ local MT = ImGui.GetMetatables()
 function MT.ImGuiStyle:ScaleAllSizes(scale_factor)
     self._MainScale = self._MainScale * scale_factor
     -- TODO:
+    self.InputTextCursorSize = ImTrunc(self.InputTextCursorSize * scale_factor)
 end
 
 local ImGuiResizeGripDef = {

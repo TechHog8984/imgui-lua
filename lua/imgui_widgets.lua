@@ -4757,7 +4757,7 @@ function ImGui.InputTextEx(label, hint, buf, buf_size, size_arg, flags, callback
         local cursor_screen_rect = ImRect(cursor_screen_pos.x, cursor_screen_pos.y - g.FontSize + 0.5, cursor_screen_pos.x + 1.0, cursor_screen_pos.y - 1.5)
 
         if cursor_is_visible and cursor_screen_rect:Overlaps(clip_rect) then
-            draw_window.DrawList:AddLineV(cursor_screen_rect.Min.x, cursor_screen_rect.Min.y, cursor_screen_rect.Max.y, ImGui.GetColorU32(ImGuiCol.InputTextCursor), 1.0 * ImTrunc(style._MainScale))
+            draw_window.DrawList:AddLineV(cursor_screen_rect.Min.x, cursor_screen_rect.Min.y, cursor_screen_rect.Max.y, ImGui.GetColorU32(ImGuiCol.InputTextCursor), style.InputTextCursorSize)
         end
 
         if not is_readonly and g.ActiveId == id then
