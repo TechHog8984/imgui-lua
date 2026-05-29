@@ -891,6 +891,7 @@ function ImGui_ImplGMOD_UpdateTexture(tex)
 end
 
 return {
+    VGUI_Hook       = VGUI_Hook,
     SetupPanelHooks = ImGui_ImplGMOD_SetupPanelHooks,
 
     GetBackendData = ImGui_ImplGMOD_GetBackendData,

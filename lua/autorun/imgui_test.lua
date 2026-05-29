@@ -16,6 +16,7 @@ if SERVER then
 else
     include"imgui.lua"
 
+    --- @module "backends.imgui_impl_gmod"
     local ImGui_ImplGMOD = include("backends/imgui_impl_gmod.lua")
 
     include("imgui_demo.lua")
@@ -68,7 +69,8 @@ else
         local f = 0.0
         local counter = 0
 
-        function viewport.PaintOver(self, w, h)
+        -- update
+        local function main_logic()
             ImGui_ImplGMOD.NewFrame()
 
             ImGui.NewFrame()
@@ -99,7 +101,10 @@ else
             ImGui.EndFrame()
 
             ImGui.Render()
+        end
 
+        -- render!
+        local function main_render()
             ImGui_ImplGMOD.RenderDrawData(ImGui.GetDrawData())
 
             if bit.band(io.ConfigFlags, ImGuiConfigFlags.ViewportsEnable) ~= 0 then
@@ -107,5 +112,8 @@ else
                 ImGui.RenderPlatformWindowsDefault()
             end
         end
+
+        ImGui_ImplGMOD.VGUI_Hook(viewport, "Think", main_logic)
+        ImGui_ImplGMOD.VGUI_Hook(viewport, "PaintOver", main_render)
     end)
 end
