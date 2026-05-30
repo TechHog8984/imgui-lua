@@ -5,6 +5,19 @@ local IM_MIN = math.min
 local IM_MAX = math.max
 local function IM_CLAMP(V, MN, MX) return (V < MN) and MN or (V > MX) and MX or V end
 
+-- TODO: HelpMarker()
+
+--- @class ImGuiDemoWindowData
+
+--- @return ImGuiDemoWindowData
+--- @nodiscard
+local function ImGuiDemoWindowData()
+    return {
+        ShowAppImageViewer = false,
+        ShowAppFullscreen = false,
+    }
+end
+
 --- @class ExampleImageViewerData
 
 --- @return ExampleImageViewerData
@@ -119,13 +132,16 @@ local function ShowExampleMenuFile()
     if ImGui.MenuItem("Save As..") then end
 end
 
-local function DemoWindowMenuBar()
+local function DemoWindowMenuBar(demo_data)
     if ImGui.BeginMenuBar() then
         if ImGui.BeginMenu("Menu") then
             ShowExampleMenuFile()
             ImGui.EndMenu()
         end
         if ImGui.BeginMenu("Examples") then
+            ImGui.SeparatorText("Concepts")
+            demo_data.ShowAppFullscreen = ImGui.MenuItem("Fullscreen window", nil, demo_data.ShowAppFullscreen)
+
             ImGui.EndMenu()
         end
 
@@ -542,7 +558,47 @@ local function ShowExampleAppImageViewer()
     -- TODO:
 end
 
+local ShowExampleAppFullscreen do
+
+local use_work_area = true
+local flags = bit.bor(ImGuiWindowFlags.NoDecoration, ImGuiWindowFlags.NoMove, ImGuiWindowFlags.NoSavedSettings)
+
+function ShowExampleAppFullscreen(open)
+    local viewport = ImGui.GetMainViewport()
+    ImGui.SetNextWindowPos(use_work_area and viewport.WorkPos or viewport.Pos)
+    ImGui.SetNextWindowSize(use_work_area and viewport.WorkSize or viewport.Size)
+
+    open = ImGui.Begin("Example: Fullscreen window", open, flags)
+    if open then
+        _, use_work_area = ImGui.Checkbox("Use work area instead of main area", use_work_area)
+        ImGui.SameLine()
+
+        _, flags = ImGui.CheckboxFlags("ImGuiWindowFlags.NoBackground", flags, ImGuiWindowFlags.NoBackground)
+        _, flags = ImGui.CheckboxFlags("ImGuiWindowFlags.NoDecoration", flags, ImGuiWindowFlags.NoDecoration)
+        ImGui.Indent()
+        _, flags = ImGui.CheckboxFlags("ImGuiWindowFlags.NoTitleBar", flags, ImGuiWindowFlags.NoTitleBar)
+        _, flags = ImGui.CheckboxFlags("ImGuiWindowFlags.NoCollapse", flags, ImGuiWindowFlags.NoCollapse)
+        _, flags = ImGui.CheckboxFlags("ImGuiWindowFlags.NoScrollbar", flags, ImGuiWindowFlags.NoScrollbar)
+        ImGui.Unindent()
+
+        if open and ImGui.Button("Close this window") then
+            open = false
+        end
+    end
+    ImGui.End()
+
+    return open
+end
+
+end
+
+do
+
+local demo_data = ImGuiDemoWindowData()
+
 function ImGui.ShowDemoWindow(open)
+    if demo_data.ShowAppFullscreen then demo_data.ShowAppFullscreen = ShowExampleAppFullscreen(demo_data.ShowAppFullscreen) end
+
     local window_flags = 0
 
     if not no_menu then window_flags = bit.bor(window_flags, ImGuiWindowFlags.MenuBar) end
@@ -558,7 +614,7 @@ function ImGui.ShowDemoWindow(open)
     local label_width = IM_MIN(label_width_base, label_width_max)
     ImGui.PushItemWidth(-label_width)
 
-    DemoWindowMenuBar()
+    DemoWindowMenuBar(demo_data)
 
     if ImGui.CollapsingHeader("Help") then
         ImGui.SeparatorText("ABOUT THIS DEMO:")
@@ -581,4 +637,6 @@ function ImGui.ShowDemoWindow(open)
     ImGui.End()
 
     return open
+end
+
 end
