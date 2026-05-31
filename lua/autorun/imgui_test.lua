@@ -34,12 +34,11 @@ else
         derma_window:SetDeleteOnClose(true)
 
         local clear_color = Color(0.45 * 255, 0.55 * 255, 0.60 * 255, 1.00 * 255)
-        local titlebar_h = 24
-        local padding = 1
+        local left, top, right, bottom = derma_window:GetDockPadding()
         local old_Paint = derma_window.Paint
         derma_window.Paint = function(self, w, h)
             old_Paint(self, w, h)
-            draw.RoundedBoxEx(6, padding, padding + titlebar_h, w - 2 * padding, h - titlebar_h - 2 * padding, clear_color, false, false, true, true)
+            draw.RoundedBoxEx(4, left, top, w - (left + right), h - (top + bottom), clear_color, false, false, true, true)
         end
 
         return derma_window

@@ -3,6 +3,21 @@
 -- `input.GetCursorPos()` has issues in MacOS:
 -- https://github.com/Facepunch/garrysmod-issues/issues/4964
 
+-- e.g. DFrame default `GetSize()` and `GetPos()` doesn't take titlebar and border into consideration, so
+-- we need to solve this manually. This is probably not perfect, but definitely better than hardcoding
+-- some titlebar or border sizes directly.
+-- Official hardcoded data: https://github.com/Facepunch/garrysmod/blob/972df225ae326086db3ccda084dc8001cd62a70e/garrysmod/lua/vgui/dframe.lua#L65
+local VGUI_HONOR_DOCK_PADDING = true
+
+-- TODO: do we have cleaner ways of doing this?
+--- @param panel Panel
+local function VGUI_GetClientAreaOffset(panel)
+    if not VGUI_HONOR_DOCK_PADDING then
+        return 0, 0, 0, 0
+    end
+    return panel:GetDockPadding()
+end
+
 local cam     = cam
 local render  = render
 local surface = surface
@@ -370,8 +385,9 @@ local function ImGui_ImplGMOD_CreateWindow(viewport)
     -- vd.VGuiWindowParent = ImGui_ImplGMOD_GetDermaWindowFromViewport(viewport.ParentViewport)
     vd.VGuiWindow = vgui.Create("EditablePanel", nil, "ImGui Platform")
 
-    vd.VGuiWindow:SetPos(viewport.Pos.x, viewport.Pos.y)
-    vd.VGuiWindow:SetSize(viewport.Size.x, viewport.Size.y)
+    local left, top, right, bottom = VGUI_GetClientAreaOffset(vd.VGuiWindow) -- this is likely all 0 for EditablePanel
+    vd.VGuiWindow:SetPos(viewport.Pos.x - left, viewport.Pos.y - top)
+    vd.VGuiWindow:SetSize(viewport.Size.x + (left + right), viewport.Size.y + (top + bottom))
     vd.VGuiWindowOwned = true
 
     ImGui_ImplGMOD_SetupPanelHooks(vd.VGuiWindow)
@@ -412,7 +428,8 @@ end
 local function ImGui_ImplGMOD_SetWindowPos(viewport, pos)
     local vd = viewport.PlatformUserData
     IM_ASSERT(IsValid(vd.VGuiWindow))
-    vd.VGuiWindow:SetPos(pos.x, pos.y)
+    local left, top = VGUI_GetClientAreaOffset(vd.VGuiWindow)
+    vd.VGuiWindow:SetPos(pos.x - left, pos.y - top)
 end
 
 --- @param viewport ImGuiViewport
@@ -421,20 +438,24 @@ end
 local function ImGui_ImplGMOD_GetWindowPos(viewport)
     local vd = viewport.PlatformUserData
     IM_ASSERT(IsValid(vd.VGuiWindow))
-
-    return ImVec2(vd.VGuiWindow:GetPos())
+    local x, y = vd.VGuiWindow:GetPos()
+    local left, top = VGUI_GetClientAreaOffset(vd.VGuiWindow)
+    return ImVec2(x + left, y + top)
 end
 
 local function ImGui_ImplGMOD_SetWindowSize(viewport, size)
     local vd = viewport.PlatformUserData
     IM_ASSERT(IsValid(vd.VGuiWindow))
-    vd.VGuiWindow:SetSize(size.x, size.y)
+    local left, top, right, bottom = VGUI_GetClientAreaOffset(vd.VGuiWindow)
+    vd.VGuiWindow:SetSize(size.x + (left + right), size.y + (top + bottom))
 end
 
 local function ImGui_ImplGMOD_GetWindowSize(viewport)
     local vd = viewport.PlatformUserData
     IM_ASSERT(IsValid(vd.VGuiWindow))
-    return ImVec2(vd.VGuiWindow:GetSize())
+    local x, y = vd.VGuiWindow:GetSize()
+    local left, top, right, bottom = VGUI_GetClientAreaOffset(vd.VGuiWindow)
+    return ImVec2(x - (left + right), y - (top + bottom))
 end
 
 local function ImGui_ImplGMOD_SetWindowFocus(viewport)
@@ -630,7 +651,9 @@ local function ImGui_ImplGMOD_NewFrame()
     local platform_io = ImGui.GetPlatformIO()
     local bd = ImGui_ImplGMOD_GetBackendData()
 
-    io.DisplaySize = ImVec2(bd.Window:GetSize())
+    local x, y = bd.Window:GetSize()
+    local left, top, right, bottom = VGUI_GetClientAreaOffset(bd.Window)
+    ImVec2_CopyV(io.DisplaySize, x - (left + right), y - (top + bottom))
     if bd.WantUpdateMonitors then
         ImGui_ImplGMOD_UpdateMonitors()
     end
