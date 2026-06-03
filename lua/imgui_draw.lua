@@ -4596,8 +4596,8 @@ function ImGui.RenderColorRectWithAlphaCheckerboard(draw_list, p_min, p_max, col
     end
 
     if bit.rshift(bit.band(col, IM_COL32_A_MASK), IM_COL32_A_SHIFT) < 0xFF then
-        local col_bg1 = ImGui.GetColorU32_U32(ImStd.ImAlphaBlendColors(IM_COL32(204, 204, 204, 255), col))
-        local col_bg2 = ImGui.GetColorU32_U32(ImStd.ImAlphaBlendColors(IM_COL32(128, 128, 128, 255), col))
+        local col_bg1 = ImGui.GetColorU32_U32(ImStd.ImAlphaBlendColors(IM_COL32(128, 128, 128, 255), col))
+        local col_bg2 = ImGui.GetColorU32_U32(ImStd.ImAlphaBlendColors(IM_COL32(204, 204, 204, 255), col))
         draw_list:AddRectFilled(p_min, p_max, col_bg1, rounding, flags)
 
         local yi = 0
@@ -4613,7 +4613,7 @@ function ImGui.RenderColorRectWithAlphaCheckerboard(draw_list, p_min, p_max, col
                 goto OUTER_CONTINUE
             end
 
-            x_start = p_min.x + grid_off.x + (yi % 2) * grid_step
+            x_start = p_min.x + grid_off.x + ((yi + 1) % 2) * grid_step
             x = x_start
             while x < p_max.x do
                 local x1 = ImClamp(x, p_min.x, p_max.x)
