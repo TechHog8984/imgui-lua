@@ -8743,7 +8743,7 @@ function ImGui.UpdateTryMergeWindowIntoHostViewport(window, viewport_dst)
     end
 
     for _, viewport_obstructing in g.Viewports:iter() do
-        if viewport_obstructing == viewport_src or viewport_obstructing == viewport_dst then
+        if viewport_obstructing == viewport_src or viewport_obstructing == viewport_dst or not viewport_obstructing.PlatformWindowCreated then
             goto CONTINUE
         end
 
