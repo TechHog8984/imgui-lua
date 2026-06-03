@@ -1230,10 +1230,31 @@ function ImGuiStyle()
         PopupRounding = 0.0,
         PopupBorderSize = 1.0,
 
+        DockingSeparatorSize = 2.0,
         MouseCursorScale = 1.0,
 
         ItemSpacing = ImVec2(8, 4),
         ItemInnerSpacing = ImVec2(4, 4),
+        CellPadding = ImVec2(4, 2),
+
+        ColumnsMinSpacing = 6.0,
+
+        LogSliderDeadzone = 4.0,
+
+        TabRounding = 5.0,
+        TabBorderSize = 0.0,
+        TabMinWidthBase = 1.0,
+        TabMinWidthShrink = 80.0,
+        TabCloseButtonMinWidthSelected = -1.0,
+        TabCloseButtonMinWidthUnselected = 0.0,
+        TabBarBorderSize = 1.0,
+        TabBarOverlineSize = 1.0,
+        TableAngledHeadersAngle = 35.0 * (IM_PI / 180.0),
+        TableAngledHeadersTextAlign = ImVec2(0.5, 0.0),
+
+        DragDropTargetRounding = 0.0,
+        DragDropTargetBorderSize = 2.0,
+        DragDropTargetPadding = 3.0,
 
         HoverFlagsForTooltipMouse = bit.bor(ImGuiHoveredFlags.Stationary, ImGuiHoveredFlags.DelayShort, ImGuiHoveredFlags.AllowWhenDisabled),
         HoverFlagsForTooltipNav = bit.bor(ImGuiHoveredFlags.NoSharedDelay, ImGuiHoveredFlags.DelayNormal, ImGuiHoveredFlags.AllowWhenDisabled),
