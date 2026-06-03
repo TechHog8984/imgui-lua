@@ -143,6 +143,14 @@ function ImTruncV2(v) return ImVec2(ImTrunc(v.x), ImTrunc(v.y)) end
 --- @param f float
 function ImTrunc64(f) return ImTrunc(f) end
 
+--- @param f float
+function ImCeilFast(f)
+    local i
+    if f >= 0 then i = math.floor(f) else i = math.ceil(f) end -- same as `ImTrunc()`
+    if f > i then return i + 1 end
+    return i
+end
+
 function IM_ROUNDUP_TO_EVEN(n) return (ImCeil((n) / 2) * 2) end
 function ImRsqrt(x)            return (1 / ImSqrt(x))       end
 
