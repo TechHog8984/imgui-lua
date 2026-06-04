@@ -815,6 +815,18 @@ function ImGui.RegisterFontAtlas(atlas)
     end
 end
 
+--- @param atlas ImFontAtlas
+function ImGui.UnregisterFontAtlas(atlas)
+    local g = GImGui
+    IM_ASSERT(atlas.RefCount > 0)
+    ImFontAtlasRemoveDrawListSharedData(atlas, g.DrawListSharedData)
+    g.FontAtlases:find_erase(atlas)
+    atlas.RefCount = atlas.RefCount - 1
+    for _, tex in atlas.TexList:iter() do
+        tex.RefCount = atlas.RefCount
+    end
+end
+
 function ImGui.GetCurrentContext()
     return GImGui
 end

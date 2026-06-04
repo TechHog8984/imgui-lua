@@ -766,9 +766,18 @@ local function ImFontAtlasBuildDiscardBakes(atlas, unused_frames)
     end
 end
 
+--- @param atlas ImFontAtlas
+--- @param data  ImDrawListSharedData
 function ImFontAtlasAddDrawListSharedData(atlas, data)
     IM_ASSERT(not atlas.DrawListSharedDatas:contains(data))
     atlas.DrawListSharedDatas:push_back(data)
+end
+
+--- @param atlas ImFontAtlas
+--- @param data  ImDrawListSharedData
+function ImFontAtlasRemoveDrawListSharedData(atlas, data)
+    IM_ASSERT(not atlas.DrawListSharedDatas:contains(data))
+    atlas.DrawListSharedDatas:find_erase(data)
 end
 
 --- @param atlas ImFontAtlas
