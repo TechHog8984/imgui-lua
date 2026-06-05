@@ -1991,31 +1991,24 @@ function ImGui.DataTypeFormatString(buf, buf_size, data_type, data, format)
     local str
     if     data_type == ImGuiDataType.S32 or data_type == ImGuiDataType.U32 then
         str = ImFormatString(format, data)
-        ImStd.ImStrncpy(buf, 1, { string.byte(str, 1, #str) }, 1, ImMin(#str + 1, buf_size))
     elseif data_type == ImGuiDataType.S64 then
         str = ImFormatString(format, data)
-        ImStd.ImStrncpy(buf, 1, { string.byte(str, 1, #str) }, 1, ImMin(#str + 1, buf_size))
     elseif data_type == ImGuiDataType.Float then
         str = ImFormatString(format, data)
-        ImStd.ImStrncpy(buf, 1, { string.byte(str, 1, #str) }, 1, ImMin(#str + 1, buf_size))
     elseif data_type == ImGuiDataType.Double then
         str = ImFormatString(format, data)
-        ImStd.ImStrncpy(buf, 1, { string.byte(str, 1, #str) }, 1, ImMin(#str + 1, buf_size))
     elseif data_type == ImGuiDataType.S8 then
         str = ImFormatString(format, data)
-        ImStd.ImStrncpy(buf, 1, { string.byte(str, 1, #str) }, 1, ImMin(#str + 1, buf_size))
     elseif data_type == ImGuiDataType.U8 then
         str = ImFormatString(format, data)
-        ImStd.ImStrncpy(buf, 1, { string.byte(str, 1, #str) }, 1, ImMin(#str + 1, buf_size))
     elseif data_type == ImGuiDataType.S16 then
         str = ImFormatString(format, (ImS16)(data))
-        ImStd.ImStrncpy(buf, 1, { string.byte(str, 1, #str) }, 1, ImMin(#str + 1, buf_size))
     elseif data_type == ImGuiDataType.U16 then
         str = ImFormatString(format, (ImU16)(data))
-        ImStd.ImStrncpy(buf, 1, { string.byte(str, 1, #str) }, 1, ImMin(#str + 1, buf_size))
     else
         IM_ASSERT(false)
     end
+    ImStd.ImStrncpy(buf, 1, { string.byte(str, 1, #str) }, 1, ImMin(#str + 1, buf_size)) -- TODO: update this when new ImFormatString is implemented
 end
 
 --- @param data_type ImGuiDataType
