@@ -4385,7 +4385,7 @@ function ImGui.InputTextEx(label, hint, buf, buf_size, size_arg, flags, callback
             state:SelectAll()
             state.CursorFollow = true
         elseif is_cut or is_copy then
-            if g.IO.PlatformIO.Platform_SetClipboardTextFn ~= nil then
+            if g.PlatformIO.Platform_SetClipboardTextFn ~= nil then
                 local ib = state:HasSelection() and ImMin(state.Stb.select_start, state.Stb.select_end) or 1
                 local ie = state:HasSelection() and ImMax(state.Stb.select_start, state.Stb.select_end) or state.TextLen + 1
                 g.TempBuffer:reserve(ie - ib + 1)
@@ -5132,6 +5132,13 @@ end
 
 end
 
+--- @param label string
+--- @param col   [float, float, float]
+--- @param flags ImGuiColorEditFlags
+function ImGui.ColorEdit3(label, col, flags)
+    return ImGui.ColorEdit4(label, col, bit.bor(flags, ImGuiColorEditFlags.NoAlpha))
+end
+
 -- Helper for ColorPicker4()
 --- @param draw_list ImDrawList
 --- @param pos       ImVec2
@@ -5712,22 +5719,22 @@ function ImGui.ColorEditOptionsPopup(col, flags)
     ImGui.PushItemFlag(ImGuiItemFlags.NoMarkEdited, true)
     local opts = g.ColorEditOptions
     if allow_opt_inputs then
-        if ImGui.RadioButton("RGB", bit.band(opts, ImGuiColorEditFlags.DisplayRGB) ~= 0) then
+        if ImGui.RadioButtonEx("RGB", bit.band(opts, ImGuiColorEditFlags.DisplayRGB) ~= 0) then
             opts = bit.bor(bit.band(opts, bit.bnot(ImGuiColorEditFlags.DisplayMask_)), ImGuiColorEditFlags.DisplayRGB)
         end
-        if ImGui.RadioButton("HSV", bit.band(opts, ImGuiColorEditFlags.DisplayHSV) ~= 0) then
+        if ImGui.RadioButtonEx("HSV", bit.band(opts, ImGuiColorEditFlags.DisplayHSV) ~= 0) then
             opts = bit.bor(bit.band(opts, bit.bnot(ImGuiColorEditFlags.DisplayMask_)), ImGuiColorEditFlags.DisplayHSV)
         end
-        if ImGui.RadioButton("Hex", bit.band(opts, ImGuiColorEditFlags.DisplayHex) ~= 0) then
+        if ImGui.RadioButtonEx("Hex", bit.band(opts, ImGuiColorEditFlags.DisplayHex) ~= 0) then
             opts = bit.bor(bit.band(opts, bit.bnot(ImGuiColorEditFlags.DisplayMask_)), ImGuiColorEditFlags.DisplayHex)
         end
     end
     if allow_opt_datatype then
         if allow_opt_inputs then ImGui.Separator() end
-        if ImGui.RadioButton("0..255", bit.band(opts, ImGuiColorEditFlags.Uint8) ~= 0) then
+        if ImGui.RadioButtonEx("0..255", bit.band(opts, ImGuiColorEditFlags.Uint8) ~= 0) then
             opts = bit.bor(bit.band(opts, bit.bnot(ImGuiColorEditFlags.DataTypeMask_)), ImGuiColorEditFlags.Uint8)
         end
-        if ImGui.RadioButton("0.00..1.00", bit.band(opts, ImGuiColorEditFlags.Float) ~= 0) then
+        if ImGui.RadioButtonEx("0.00..1.00", bit.band(opts, ImGuiColorEditFlags.Float) ~= 0) then
             opts = bit.bor(bit.band(opts, bit.bnot(ImGuiColorEditFlags.DataTypeMask_)), ImGuiColorEditFlags.Float)
         end
     end

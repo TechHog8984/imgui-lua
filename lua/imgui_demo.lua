@@ -294,6 +294,17 @@ function DemoWindowWidgetsColorAndPickers()
         _, base_flags = ImGui.CheckboxFlags("ImGuiColorEditFlags.NoColorMarkers", base_flags, ImGuiColorEditFlags.NoColorMarkers)
         _, base_flags = ImGui.CheckboxFlags("ImGuiColorEditFlags.HDR", base_flags, ImGuiColorEditFlags.HDR)
 
+        ImGui.SeparatorText("Inline color editor")
+        ImGui.Text("Color widget:")
+        ImGui.ColorEdit3("MyColor##1", color, base_flags)
+
+        ImGui.Text("Color widget HSV with Alpha:")
+        ImGui.ColorEdit4("MyColor##2", color, bit.bor(ImGuiColorEditFlags.DisplayHSV, base_flags))
+
+        -- TODO:
+        -- ImGui.Text("Color widget with Float Display:")
+        -- ImGui.ColorEdit4("MyColor##2f", color, bit.bor(ImGuiColorEditFlags.Float, base_flags))
+
         ImGui.SeparatorText("Color picker")
 
         ImGui.PushID("Color picker")

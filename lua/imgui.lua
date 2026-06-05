@@ -6877,14 +6877,14 @@ end
 --- @return string?
 function ImGui.GetClipboardText()
     local g = GImGui
-    return g.IO.PlatformIO.Platform_GetClipboardTextFn and g.IO.PlatformIO.Platform_GetClipboardTextFn(g) or nil
+    return g.PlatformIO.Platform_GetClipboardTextFn and g.PlatformIO.Platform_GetClipboardTextFn(g) or nil
 end
 
 --- @param text string
 function ImGui.SetClipboardText(text)
     local g = GImGui
-    if g.IO.PlatformIO.Platform_SetClipboardTextFn ~= nil then
-        g.IO.PlatformIO.Platform_SetClipboardTextFn(g, text)
+    if g.PlatformIO.Platform_SetClipboardTextFn ~= nil then
+        g.PlatformIO.Platform_SetClipboardTextFn(g, text)
     end
 end
 

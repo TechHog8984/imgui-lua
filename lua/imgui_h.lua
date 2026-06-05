@@ -1231,7 +1231,7 @@ function ImGuiViewport()
 end
 
 --- @class ImGuiPlatformIO
---- @field Platform_GetClipboardTextFn fun(ctx: ImGuiContext): string
+--- @field Platform_GetClipboardTextFn fun(ctx?: ImGuiContext): string
 --- @field Platform_CreateWindow       fun(vp: ImGuiViewport)
 --- @field Platform_OnChangedViewport  fun(vp: ImGuiViewport)
 --- @field Monitors                    ImVector<ImGuiPlatformMonitor>
