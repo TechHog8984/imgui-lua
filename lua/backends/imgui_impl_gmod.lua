@@ -270,9 +270,8 @@ local function ImGui_ImplGMOD_SetupPanelHooks(panel, is_main_viewport)
     VGUI_Hook(panel, "OnKeyCodePressed", function(a0, a1) if GMOD_TextInputActive() then return end; ImGui_ImplGMOD_ProcessEvent(a1, true, nil, nil, nil); end)
     VGUI_Hook(panel, "OnKeyCodeReleased", function(a0, a1) if GMOD_TextInputActive() then return end; ImGui_ImplGMOD_ProcessEvent(a1, false, nil, nil, nil); end)
 
-    VGUI_Hook(panel, "OnScreenSizeChanged", function(a0) ImGui_ImplGMOD_GetBackendData().WantUpdateMonitors = true; ImGui_ImplGMOD_InvalidateEngineObjects(); end)
-
     if is_main_viewport then
+        VGUI_Hook(panel, "OnScreenSizeChanged", function(a0) ImGui_ImplGMOD_GetBackendData().WantUpdateMonitors = true; ImGui_ImplGMOD_InvalidateEngineObjects(); end)
         VGUI_Hook(panel, "OnRemove", function() ImGui_ImplGMOD_Shutdown(); end)
     end
 end
