@@ -2082,3 +2082,8 @@ ImGuiTreeNodeFlags.CollapsingHeader = bit.bor(ImGuiTreeNodeFlags.Framed, ImGuiTr
 
 ImGuiTreeNodeFlags.OpenOnMask_ = bit.bor(ImGuiTreeNodeFlags.OpenOnDoubleClick, ImGuiTreeNodeFlags.OpenOnArrow)
 ImGuiTreeNodeFlags.DrawLinesMask_ = bit.bor(ImGuiTreeNodeFlags.DrawLinesNone, ImGuiTreeNodeFlags.DrawLinesFull, ImGuiTreeNodeFlags.DrawLinesToNodes)
+
+--- @enum ImGuiTableFlags
+ImGuiTableFlags = {
+    None = 0,
+}

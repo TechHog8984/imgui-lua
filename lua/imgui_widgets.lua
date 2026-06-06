@@ -6911,7 +6911,7 @@ function ImGui.BeginMenuEx(label, icon, enabled)
 
     if g.ActiveId == id and g.HoveredId ~= id and g.ActiveIdSource == ImGuiInputSource.Mouse and ImGui.IsMouseDragging(0) then
         ImGui.ClearActiveID()
-        ImGui.SetKeyOwner(ImGuiKey.MouseLeft, ImGuiKeyOwner.NoOwner)
+        ImGui.SetKeyOwner(ImGuiKey.MouseLeft, ImGuiKeyOwner_NoOwner)
     end
 
     local hovered = g.HoveredId == id and enabled and not g.NavHighlightItemUnderNav

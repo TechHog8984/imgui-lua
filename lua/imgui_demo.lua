@@ -522,8 +522,6 @@ end
 
 end
 
-local no_menu = false
-
 local function DemoWindowWidgets()
     if not ImGui.CollapsingHeader("Widgets") then
         return
@@ -579,8 +577,9 @@ function ShowExampleAppFullscreen(open)
     ImGui.SetNextWindowPos(use_work_area and viewport.WorkPos or viewport.Pos)
     ImGui.SetNextWindowSize(use_work_area and viewport.WorkSize or viewport.Size)
 
-    open = ImGui.Begin("Example: Fullscreen window", open, flags)
-    if open then
+    local ret
+    open, ret = ImGui.Begin("Example: Fullscreen window", open, flags)
+    if ret then
         _, use_work_area = ImGui.Checkbox("Use work area instead of main area", use_work_area)
         ImGui.SameLine()
 
@@ -607,15 +606,41 @@ do
 
 local demo_data = ImGuiDemoWindowData()
 
+local no_titlebar       = false
+local no_scrollbar      = false
+local no_menu           = false
+local no_move           = false
+local no_resize         = false
+local no_collapse       = false
+local no_close          = false
+local no_nav            = false
+local no_background     = false
+local no_bring_to_front = false
+local no_docking        = false
+local unsaved_document  = false
+
 function ImGui.ShowDemoWindow(open)
     if demo_data.ShowAppFullscreen then demo_data.ShowAppFullscreen = ShowExampleAppFullscreen(demo_data.ShowAppFullscreen) end
 
     local window_flags = 0
+    if no_titlebar       then window_flags = bit.bor(window_flags, ImGuiWindowFlags.NoTitleBar) end
+    if no_scrollbar      then window_flags = bit.bor(window_flags, ImGuiWindowFlags.NoScrollbar) end
+    if not no_menu       then window_flags = bit.bor(window_flags, ImGuiWindowFlags.MenuBar) end
+    if no_move           then window_flags = bit.bor(window_flags, ImGuiWindowFlags.NoMove) end
+    if no_resize         then window_flags = bit.bor(window_flags, ImGuiWindowFlags.NoResize) end
+    if no_collapse       then window_flags = bit.bor(window_flags, ImGuiWindowFlags.NoCollapse) end
+    if no_nav            then window_flags = bit.bor(window_flags, ImGuiWindowFlags.NoNav) end
+    if no_background     then window_flags = bit.bor(window_flags, ImGuiWindowFlags.NoBackground) end
+    if no_bring_to_front then window_flags = bit.bor(window_flags, ImGuiWindowFlags.NoBringToFrontOnFocus) end
+    if no_docking        then window_flags = bit.bor(window_flags, ImGuiWindowFlags.NoDocking) end
+    if unsaved_document  then window_flags = bit.bor(window_flags, ImGuiWindowFlags.UnsavedDocument) end
+    if no_close          then open = nil end
 
     if not no_menu then window_flags = bit.bor(window_flags, ImGuiWindowFlags.MenuBar) end
 
-    open = ImGui.Begin("ImGui Sincerely Demo", open, window_flags)
-    if not open then
+    local ret -- is_visible
+    open, ret = ImGui.Begin("ImGui Sincerely Demo", open, window_flags)
+    if not ret then
         ImGui.End()
         return open
     end
@@ -636,7 +661,21 @@ function ImGui.ShowDemoWindow(open)
     end
 
     if ImGui.CollapsingHeader("Window Options") then
-        
+        if ImGui.BeginTable("split", 3) then
+            ImGui.TableNextColumn() _, no_titlebar       = ImGui.Checkbox("No titlebar", no_titlebar)
+            ImGui.TableNextColumn() _, no_scrollbar      = ImGui.Checkbox("No scrollbar", no_scrollbar)
+            ImGui.TableNextColumn() _, no_menu           = ImGui.Checkbox("No menu", no_menu)
+            ImGui.TableNextColumn() _, no_move           = ImGui.Checkbox("No move", no_move)
+            ImGui.TableNextColumn() _, no_resize         = ImGui.Checkbox("No resize", no_resize)
+            ImGui.TableNextColumn() _, no_collapse       = ImGui.Checkbox("No collapse", no_collapse)
+            ImGui.TableNextColumn() _, no_close          = ImGui.Checkbox("No close", no_close)
+            ImGui.TableNextColumn() _, no_nav            = ImGui.Checkbox("No nav", no_nav)
+            ImGui.TableNextColumn() _, no_background     = ImGui.Checkbox("No background", no_background)
+            ImGui.TableNextColumn() _, no_bring_to_front = ImGui.Checkbox("No bring to front", no_bring_to_front)
+            ImGui.TableNextColumn() _, no_docking        = ImGui.Checkbox("No docking", no_docking)
+            ImGui.TableNextColumn() _, unsaved_document  = ImGui.Checkbox("Unsaved document", unsaved_document)
+            ImGui.EndTable()
+        end
     end
 
     DemoWindowWidgets()

@@ -4274,9 +4274,15 @@ local function RenderWindowTitleBarContents(window, title_bar_rect, name, open)
     local layout_r = ImRect(title_bar_rect.Min.x + pad_l, title_bar_rect.Min.y, title_bar_rect.Max.x - pad_r, title_bar_rect.Max.y)
     local clip_r = ImRect(layout_r.Min.x, layout_r.Min.y, ImMin(layout_r.Max.x + g.Style.ItemInnerSpacing.x, title_bar_rect.Max.x), layout_r.Max.y)
 
-    -- if bit.band(flags, ImGuiWindowFlags.UnsavedDocument) ~= 0 then
-    -- TODO:
-    -- end
+    if bit.band(flags, ImGuiWindowFlags.UnsavedDocument) ~= 0 then
+        local marker_pos = ImVec2()
+        marker_pos.x = ImClamp(layout_r.Min.x + (layout_r:GetWidth() - text_size.x) * style.WindowTitleAlign.x + text_size.x, layout_r.Min.x, layout_r.Max.x)
+        marker_pos.y = (layout_r.Min.y + layout_r.Max.y) * 0.5
+        if marker_pos.x > layout_r.Min.x then
+            ImGui.RenderBullet(window.DrawList, marker_pos, ImGui.GetColorU32(ImGuiCol.UnsavedMarker))
+            clip_r.Max.x = ImMin(clip_r.Max.x, marker_pos.x - math.floor(marker_size_x * 0.5))
+        end
+    end
 
     ImGui.RenderTextClipped(layout_r.Min, layout_r.Max, name, nil, text_size, style.WindowTitleAlign, clip_r)
 
@@ -4855,10 +4861,10 @@ end
 --- @param name     string
 --- @param open?    bool
 --- @param flags?   ImGuiWindowFlags
---- @return bool is_open       # The updated `open` passed in
---- @return bool no_skip_items # You always need to call `ImGui.End()` even if false is returned
+--- @return bool? is_open       # The updated `open` passed in
+--- @return bool  no_skip_items # You always need to call `ImGui.End()` even if false is returned
 function ImGui.Begin(name, open, flags)
-    if flags == nil then flags = 0     end
+    if flags == nil then flags = 0 end
 
     local g = GImGui
     local style = g.Style
@@ -5628,9 +5634,7 @@ function ImGui.Begin(name, open, flags)
         window.SkipItems = true
     end
 
-    if     open then open = true  end
-    if not open then open = false end
-
+    if open == nil then open = true end
     return open, not window.SkipItems
 end
 
@@ -8569,7 +8573,17 @@ end
 
 --- @param result ImGuiNavItemData
 function ImGui.NavApplyItemToResult(result)
-    -- TODO:
+    local g = GImGui
+    local window = g.CurrentWindow
+    result.Window = window
+    result.ID = g.LastItemData.ID
+    result.FocusScopeId = g.CurrentFocusScopeId
+    result.ItemFlags = g.LastItemData.ItemFlags
+    ImRect_Copy(result.RectRel, ImGui.WindowRectAbsToRel(window, g.LastItemData.NavRect))
+    if bit.band(result.ItemFlags, ImGuiItemFlags.HasSelectionUserData) ~= 0 then
+        IM_ASSERT(g.NextItemData.SelectionUserData ~= ImGuiSelectionUserData_Invalid)
+        result.SelectionUserData = g.NextItemData.SelectionUserData
+    end
 end
 
 --- @param result         ImGuiNavItemData
