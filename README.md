@@ -2,9 +2,9 @@
 
 > "Give someone state and they'll have a bug one day, but teach them how to represent state in two separate locations that have to be kept in sync and they'll have bugs for a lifetime." - ryg
 
-## Current State
+## Progress
 
-<img src="misc/images/current.png" alt="Example" width="550" height="800">
+<img src="misc/images/current.png" alt="Example" width="600" height="600">
 
 _This image may be outdated!_ 
 
