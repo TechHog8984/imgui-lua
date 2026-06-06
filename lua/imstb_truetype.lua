@@ -69,10 +69,14 @@ local STBTT_MS_EID = {
     UNICODE_FULL = 10
 }
 
-local STBTT_vmove  = 1
-local STBTT_vline  = 2
-local STBTT_vcurve = 3
-local STBTT_vcubic = 4
+-- original enum doesn't have a name, so we name it
+--- @enum STBTT_VTX
+local STBTT_VTX = {
+    MOVE = 1,
+    LINE = 2,
+    CURVE = 3,
+    CUBIC = 4
+}
 
 local bit = bit
 local math = math
@@ -97,6 +101,8 @@ local trunc = function(x)
 end
 
 local function STBTT__NOTUSED(_) return end
+
+--- @alias stbtt_int32 int
 
 local function stbtt_int32(val)   return bit.band(val, 0xFFFFFFFF) - (bit.band(val, 0x80000000) ~= 0 and 0x100000000 or 0) end
 local function stbtt_uint32(val)  return bit.band(val, 0xFFFFFFFF) end
@@ -200,8 +206,8 @@ local function stbtt_vertex()
 end
 
 --- @class stbtt__csctx
---- @field bounds       int
---- @field started      int
+--- @field bounds       bool
+--- @field started      bool
 --- @field first_x      float
 --- @field first_y      float
 --- @field x            float
@@ -217,8 +223,8 @@ end
 --- @nodiscard
 local function stbtt__csctx()
     return {
-        bounds  = nil,
-        started = nil,
+        bounds  = false,
+        started = false,
         first_x = nil,
         first_y = nil,
         x       = nil,
@@ -233,13 +239,14 @@ local function stbtt__csctx()
     }
 end
 
+--- @param bounds bool
 --- @return stbtt__csctx
 --- @nodiscard
 local function STBTT__CSCTX_INIT(bounds)
     local this = stbtt__csctx()
 
     this.bounds  = bounds
-    this.started = 0
+    this.started = false
     this.first_x = 0
     this.first_y = 0
     this.x       = 0
@@ -264,7 +271,7 @@ end
 --- @field y0     float
 --- @field x1     float
 --- @field y1     float
---- @field invert int
+--- @field invert bool
 
 --- @return stbtt__edge
 --- @nodiscard
@@ -274,7 +281,7 @@ local function stbtt__edge()
         y0 = nil,
         x1 = nil,
         y1 = nil,
-        invert = nil
+        invert = false
     }
 end
 
@@ -304,7 +311,7 @@ local function stbtt__new_active(e, off_x, start_point)
     z.fdy = (dxdy ~= 0.0) and (1.0 / dxdy) or 0.0
     z.fx = e.x0 + dxdy * (start_point - e.y0)
     z.fx = z.fx - off_x
-    z.direction = (e.invert ~= 0) and 1.0 or -1.0
+    z.direction = (e.invert) and 1.0 or -1.0
     z.sy = e.y0
     z.ey = e.y1
     z.next = nil
@@ -620,7 +627,8 @@ local function stbtt__get_subrs(cff, fontdict) -- stbtt__buf cff, stbtt__buf fon
     return stbtt__cff_get_index(cff)
 end
 
-local function stbtt__get_svg(info) -- stbtt_fontinfo *info
+--- @param info stbtt_fontinfo
+local function stbtt__get_svg(info)
     local t
     if info.svg < 0 then
         t = stbtt__find_table(info.data, info.fontstart, "SVG ")
@@ -838,12 +846,18 @@ function stbtt_FindGlyphIndex(info, unicode_codepoint)
     return 0
 end
 
-local function stbtt_setvertex(v, _type, x, y, cx, cy)
-    v.type = _type
-    v.x = stbtt_int16(x)
-    v.y = stbtt_int16(y)
-    v.cx = stbtt_int16(cx)
-    v.cy = stbtt_int16(cy)
+--- @param v        stbtt_vertex
+--- @param vtx_type STBTT_VTX
+--- @param x        stbtt_int32
+--- @param y        stbtt_int32
+--- @param cx       stbtt_int32
+--- @param cy       stbtt_int32
+local function stbtt_setvertex(v, vtx_type, x, y, cx, cy)
+    v.type = vtx_type
+    v.x = (stbtt_int16)(x)
+    v.y = (stbtt_int16)(y)
+    v.cx = (stbtt_int16)(cx)
+    v.cy = (stbtt_int16)(cy)
 end
 
 local function stbtt__GetGlyfOffset(info, glyph_index)
@@ -887,20 +901,30 @@ local function stbtt_GetCodepointBox(info, codepoint)
     return stbtt_GetGlyphBox(info, stbtt_FindGlyphIndex(info, codepoint))
 end
 
+--- @param vertices     stbtt_vertex[]
+--- @param num_vertices int
+--- @param was_off      bool
+--- @param start_off    bool
+--- @param sx           stbtt_int32
+--- @param sy           stbtt_int32
+--- @param scx          stbtt_int32
+--- @param scy          stbtt_int32
+--- @param cx           stbtt_int32
+--- @param cy           stbtt_int32
 local function stbtt__close_shape(vertices, num_vertices, was_off, start_off, sx, sy, scx, scy, cx, cy)
-    if start_off ~= 0 then
-        if was_off ~= 0 then
-            stbtt_setvertex(vertices[num_vertices + 1], STBTT_vcurve, bit.rshift(cx + scx, 1), bit.rshift(cy + scy, 1), cx, cy)
+    if start_off then
+        if was_off then
+            stbtt_setvertex(vertices[num_vertices + 1], STBTT_VTX.CURVE, bit.rshift(cx + scx, 1), bit.rshift(cy + scy, 1), cx, cy)
             num_vertices = num_vertices + 1
         end
-        stbtt_setvertex(vertices[num_vertices + 1], STBTT_vcurve, sx, sy, scx, scy)
+        stbtt_setvertex(vertices[num_vertices + 1], STBTT_VTX.CURVE, sx, sy, scx, scy)
         num_vertices = num_vertices + 1
     else
-        if was_off ~= 0 then
-            stbtt_setvertex(vertices[num_vertices + 1], STBTT_vcurve, sx, sy, cx, cy)
+        if was_off then
+            stbtt_setvertex(vertices[num_vertices + 1], STBTT_VTX.CURVE, sx, sy, cx, cy)
             num_vertices = num_vertices + 1
         else
-            stbtt_setvertex(vertices[num_vertices + 1], STBTT_vline, sx, sy, 0, 0)
+            stbtt_setvertex(vertices[num_vertices + 1], STBTT_VTX.LINE, sx, sy, 0, 0)
             num_vertices = num_vertices + 1
         end
     end
@@ -931,8 +955,8 @@ local function stbtt__GetGlyphShapeTT(info, glyph_index)
         for i = 1, m do vertices[i] = stbtt_vertex() end
 
         local j = 0
-        local was_off = 0
-        local start_off = 0
+        local was_off = false
+        local start_off = false
         local next_move = 0
         local flagcount = 0
 
@@ -1014,8 +1038,8 @@ local function stbtt__GetGlyphShapeTT(info, glyph_index)
                 end
 
                 -- now start the new one
-                start_off = ((bit.band(flags, 1) == 0) and 1 or 0)
-                if start_off ~= 0 then
+                start_off = (bit.band(flags, 1) == 0)
+                if start_off then
                     scx = x
                     scy = y
                     if bit.band(vertices[off + i + 1].type, 1) == 0 then
@@ -1030,31 +1054,31 @@ local function stbtt__GetGlyphShapeTT(info, glyph_index)
                     sx = x
                     sy = y
                 end
-                stbtt_setvertex(vertices[num_vertices + 1], STBTT_vmove, sx, sy, 0, 0)
+                stbtt_setvertex(vertices[num_vertices + 1], STBTT_VTX.MOVE, sx, sy, 0, 0)
                 num_vertices = num_vertices + 1
-                was_off = 0
+                was_off = false
                 next_move = 1 + ttUSHORT(endPtsOfContours, j * 2)
                 j = j + 1
             else
                 if bit.band(flags, 1) == 0 then
-                    if was_off ~= 0 then
-                        stbtt_setvertex(vertices[num_vertices + 1], STBTT_vcurve, bit.rshift(cx + x, 1), bit.rshift(cy + y, 1), cx, cy)
+                    if was_off then
+                        stbtt_setvertex(vertices[num_vertices + 1], STBTT_VTX.CURVE, bit.rshift(cx + x, 1), bit.rshift(cy + y, 1), cx, cy)
                         num_vertices = num_vertices + 1
                     end
 
                     cx = x
                     cy = y
-                    was_off = 1
+                    was_off = true
                 else
-                    if was_off ~= 0 then
-                        stbtt_setvertex(vertices[num_vertices + 1], STBTT_vcurve, x, y, cx, cy)
+                    if was_off then
+                        stbtt_setvertex(vertices[num_vertices + 1], STBTT_VTX.CURVE, x, y, cx, cy)
                         num_vertices = num_vertices + 1
                     else
-                        stbtt_setvertex(vertices[num_vertices + 1], STBTT_vline, x, y, 0, 0)
+                        stbtt_setvertex(vertices[num_vertices + 1], STBTT_VTX.LINE, x, y, 0, 0)
                         num_vertices = num_vertices + 1
                     end
 
-                    was_off = 0
+                    was_off = false
                 end
             end
         end
@@ -1147,49 +1171,74 @@ local function stbtt__GetGlyphShapeTT(info, glyph_index)
     return num_vertices, vertices
 end
 
+--- @param c stbtt__csctx
+--- @param x stbtt_int32
+--- @param y stbtt_int32
 local function stbtt__track_vertex(c, x, y)
-    if x > c.max_x or c.started == 0 then c.max_x = x end
-    if y > c.max_y or c.started == 0 then c.max_y = y end
-    if x < c.min_x or c.started == 0 then c.min_x = x end
-    if y < c.min_y or c.started == 0 then c.min_y = y end
-    c.started = 1
+    if x > c.max_x or not c.started then c.max_x = x end
+    if y > c.max_y or not c.started then c.max_y = y end
+    if x < c.min_x or not c.started then c.min_x = x end
+    if y < c.min_y or not c.started then c.min_y = y end
+    c.started = true
 end
 
-local function stbtt__csctx_v(c, _type, x, y, cx, cy, cx1, cy1)
-    if c.bounds ~= 0 then
+--- @param c        stbtt__csctx
+--- @param vtx_type STBTT_VTX
+--- @param x        stbtt_int32
+--- @param y        stbtt_int32
+--- @param cx       stbtt_int32
+--- @param cy       stbtt_int32
+--- @param cx1      stbtt_int32
+--- @param cy1      stbtt_int32
+local function stbtt__csctx_v(c, vtx_type, x, y, cx, cy, cx1, cy1)
+    if c.bounds then
         stbtt__track_vertex(c, x, y)
-        if _type == STBTT_vcubic then
+        if vtx_type == STBTT_VTX.CUBIC then
             stbtt__track_vertex(c, cx, cy)
             stbtt__track_vertex(c, cx1, cy1)
         end
     else
-        stbtt_setvertex(c.pvertices[c.num_vertices + 1], _type, x, y, cx, cy)
+        stbtt_setvertex(c.pvertices[c.num_vertices + 1], vtx_type, x, y, cx, cy)
         c.pvertices[c.num_vertices + 1].cx1 = stbtt_int16(cx1)
         c.pvertices[c.num_vertices + 1].cy1 = stbtt_int16(cy1)
     end
 end
 
+--- @param ctx stbtt__csctx
 local function stbtt__csctx_close_shape(ctx)
     if ctx.first_x ~= ctx.x or ctx.first_y ~= ctx.y then
-        stbtt__csctx_v(ctx, STBTT_vline, trunc(ctx.first_x), trunc(ctx.first_y), 0, 0, 0, 0)
+        stbtt__csctx_v(ctx, STBTT_VTX.LINE, trunc(ctx.first_x), trunc(ctx.first_y), 0, 0, 0, 0)
     end
 end
 
+--- @param ctx stbtt__csctx
+--- @param dx  float
+--- @param dy  float
 local function stbtt__csctx_rmove_to(ctx, dx, dy)
     stbtt__csctx_close_shape(ctx)
     ctx.x = ctx.x + dx
     ctx.first_x = ctx.x
     ctx.y = ctx.y + dy
     ctx.first_y = ctx.y
-    stbtt__csctx_v(ctx, STBTT_vmove, trunc(ctx.x), trunc(ctx.y), 0, 0, 0, 0)
+    stbtt__csctx_v(ctx, STBTT_VTX.MOVE, trunc(ctx.x), trunc(ctx.y), 0, 0, 0, 0)
 end
 
+--- @param ctx stbtt__csctx
+--- @param dx  float
+--- @param dy  float
 local function stbtt__csctx_rline_to(ctx, dx, dy)
     ctx.x = ctx.x + dx
     ctx.y = ctx.y + dy
-    stbtt__csctx_v(ctx, STBTT_vline, trunc(ctx.x), trunc(ctx.y), 0, 0, 0, 0)
+    stbtt__csctx_v(ctx, STBTT_VTX.LINE, trunc(ctx.x), trunc(ctx.y), 0, 0, 0, 0)
 end
 
+--- @param ctx stbtt__csctx
+--- @param dx1 float
+--- @param dy1 float
+--- @param dx2 float
+--- @param dy2 float
+--- @param dx3 float
+--- @param dy3 float
 local function stbtt__csctx_rccurve_to(ctx, dx1, dy1, dx2, dy2, dx3, dy3)
     local cx1 = ctx.x + dx1
     local cy1 = ctx.y + dy1
@@ -1197,7 +1246,7 @@ local function stbtt__csctx_rccurve_to(ctx, dx1, dy1, dx2, dy2, dx3, dy3)
     local cy2 = cy1 + dy2
     ctx.x = cx2 + dx3
     ctx.y = cy2 + dy3
-    stbtt__csctx_v(ctx, STBTT_vcubic, trunc(ctx.x), trunc(ctx.y), trunc(cx1), trunc(cy1), trunc(cx2), trunc(cy2))
+    stbtt__csctx_v(ctx, STBTT_VTX.CUBIC, trunc(ctx.x), trunc(ctx.y), trunc(cx1), trunc(cy1), trunc(cx2), trunc(cy2))
 end
 
 local function stbtt__get_subr(idx, n)
@@ -1243,7 +1292,7 @@ local function stbtt__cid_get_glyph_subrs(info, glyph_index)
 end
 
 local function stbtt__run_charstring(info, glyph_index, c) -- const stbtt_fontinfo *info, int glyph_index, stbtt__csctx *c
-    local in_header = 1
+    local in_header = true
     local maskbits = 0
     local subr_stack_height = 0
     local sp = 0
@@ -1269,23 +1318,23 @@ local function stbtt__run_charstring(info, glyph_index, c) -- const stbtt_fontin
 
         -- TODO: implement hinting
         if b0 == 0x13 or b0 == 0x14 then -- hintmask or cntrmask
-            if in_header ~= 0 then
+            if in_header then
                 maskbits = maskbits + trunc(sp / 2)  -- implicit "vstem"
             end
-            in_header = 0
+            in_header = false
             stbtt__buf_skip(b, trunc((maskbits + 7) / 8))
         elseif b0 == 0x01 or b0 == 0x03 or b0 == 0x12 or b0 == 0x17 then -- hstem, vstem, hstemhm, vstemhm
             maskbits = maskbits + trunc(sp / 2)
         elseif b0 == 0x15 then -- rmoveto
-            in_header = 0
+            in_header = false
             if sp < 2 then return STBTT__CSERR("rmoveto stack") end
             stbtt__csctx_rmove_to(c, s[sp - 2], s[sp - 1])
         elseif b0 == 0x04 then -- vmoveto
-            in_header = 0
+            in_header = false
             if sp < 1 then return STBTT__CSERR("vmoveto stack") end
             stbtt__csctx_rmove_to(c, 0, s[sp - 1])
         elseif b0 == 0x16 then -- hmoveto
-            in_header = 0
+            in_header = false
             if sp < 1 then return STBTT__CSERR("hmoveto stack") end
             stbtt__csctx_rmove_to(c, s[sp - 1], 0)
         elseif b0 == 0x05 then -- rlineto
@@ -1512,8 +1561,8 @@ end
 function stbtt__GetGlyphShapeT2(info, glyph_index)
     -- runs the charstring twice, once to count and once to output (to avoid realloc)
     local vertices = nil
-    local count_ctx = STBTT__CSCTX_INIT(1)
-    local output_ctx = STBTT__CSCTX_INIT(0)
+    local count_ctx = STBTT__CSCTX_INIT(true)
+    local output_ctx = STBTT__CSCTX_INIT(false)
     if stbtt__run_charstring(info, glyph_index, count_ctx) ~= 0 then
         vertices = {} for i = 1, count_ctx.num_vertices do vertices[i] = stbtt_vertex() end
 
@@ -1528,7 +1577,7 @@ function stbtt__GetGlyphShapeT2(info, glyph_index)
 end
 
 function stbtt__GetGlyphInfoT2(info, glyph_index) -- const stbtt_fontinfo *info, int glyph_index, int *x0, int *y0, int *x1, int *y1
-    local c = STBTT__CSCTX_INIT(1)
+    local c = STBTT__CSCTX_INIT(true)
     local r = stbtt__run_charstring(info, glyph_index, c)
     local x0, y0, x1, y1
     x0 = (r ~= 0) and c.min_x or 0
@@ -1601,7 +1650,6 @@ end
 --- Antialiasing software rasterizer
 ---
 ---
-
 
 function stbtt_GetGlyphBitmapBoxSubpixel(font, glyph, scale_x, scale_y, shift_x, shift_y)
     local n, x0, y0, x1, y1 = stbtt_GetGlyphBox(font, glyph)
@@ -1756,25 +1804,19 @@ local function stbtt__fill_active_edges_new(scanline, scanline_fill, len, e, y_t
                     scanline[x] = scanline[x] + stbtt__position_trapezoid_area(height, x_top, x + 1.0, x_bottom, x + 1.0)
                     scanline_fill[x + 1] = scanline_fill[x + 1] + height -- everything right of this pixel is filled
                 else
-                    local x, x1, x2
+                    local x1, x2
                     local y_crossing, y_final, step, sign, area
                     -- covers 2+ pixels
                     if x_top > x_bottom then
                         -- flip scanline vertically; signed area is the same
-                        local t
                         sy0 = y_bottom - (sy0 - y_top)
                         sy1 = y_bottom - (sy1 - y_top)
-                        t = sy0
-                        sy0 = sy1
-                        sy1 = t
-                        t = x_bottom
-                        x_bottom = x_top
-                        x_top = t
+                        local t
+                        t = sy0; sy0 = sy1; sy1 = t
+                        t = x_bottom; x_bottom = x_top; x_top = t
                         dx = -dx
                         dy = -dy
-                        t = x0
-                        x0 = xb
-                        xb = t
+                        t = x0; x0 = xb; xb = t
                     end
                     STBTT_assert(dy >= 0)
                     STBTT_assert(dx >= 0)
@@ -1810,22 +1852,12 @@ local function stbtt__fill_active_edges_new(scanline, scanline_fill, len, e, y_t
                         end
                     end
 
-                    -- in second pixel, area covered by line segment found in first pixel
-                    -- is always a rectangle 1 wide * the height of that line segment; this
-                    -- is exactly what the variable 'area' stores. it also gets a contribution
-                    -- from the line segment within it. the THIRD pixel will get the first
-                    -- pixel's rectangle contribution, the second pixel's rectangle contribution,
-                    -- and its own contribution. the 'own contribution' is the same in every pixel except
-                    -- the leftmost and rightmost, a trapezoid that slides down in each pixel.
-                    -- the second pixel's contribution to the third pixel will be the
-                    -- rectangle 1 wide times the height change in the second pixel, which is dy.
-
                     step = sign * dy * 1 -- dy is dy/dx, change in y for every 1 change in x,
                     -- which multiplied by 1-pixel-width is how much pixel area changes for each step in x
                     -- so the area advances by 'step' every time
 
-                    for _x = x1 + 1, x2 - 1 do
-                        scanline[_x] = scanline[_x] + area + step / 2 -- area of trapezoid is 1*step/2
+                    for x = x1 + 1, x2 - 1 do
+                        scanline[x] = scanline[x] + area + step / 2 -- area of trapezoid is 1*step/2
                         area = area + step
                     end
                     STBTT_assert(STBTT_fabs(area) <= 1.01) -- accumulated error from area += step unless we round step down
@@ -1839,27 +1871,7 @@ local function stbtt__fill_active_edges_new(scanline, scanline_fill, len, e, y_t
                     scanline_fill[x2 + 1] = scanline_fill[x2 + 1] + sign * (sy1 - sy0)
                 end
             else
-                -- if edge goes outside of box we're drawing, we require
-                -- clipping logic. since this does not match the intended use
-                -- of this library, we use a different, very slow brute
-                -- force implementation
-                -- note though that this does happen some of the time because
-                -- x_top and x_bottom can be extrapolated at the top & bottom of
-                -- the shape and actually lie outside the bounding box
                 for x = 0, len - 1 do
-                    -- cases:
-                    --
-                    -- there can be up to two intersections with the pixel. any intersection
-                    -- with left or right edges can be handled by splitting into two (or three)
-                    -- regions. intersections with top & bottom do not necessitate case-wise logic.
-                    --
-                    -- the old way of doing this found the intersections with the left & right edges,
-                    -- then used some simple logic to produce up to three segments in sorted order
-                    -- from top-to-bottom. however, this had a problem: if an x edge was epsilon
-                    -- across the x border, then the corresponding y position might not be distinct
-                    -- from the other y segment, and it might ignored as an empty segment. to avoid
-                    -- that, we need to explicitly produce segments based on x positions.
-
                     -- rename variables to clearly-defined pairs
                     local y0 = y_top
                     local x1 = x
@@ -1993,7 +2005,7 @@ local function stbtt__sort_edges(p)
 end
 
 local function stbtt__rasterize(result, pts, wcount, windings, scale_x, scale_y, shift_x, shift_y, off_x, off_y, invert)
-    local y_scale_inv = (invert ~= 0) and -scale_y or scale_y
+    local y_scale_inv = (invert) and -scale_y or scale_y
     local e
     local n, m
 
@@ -2023,16 +2035,16 @@ local function stbtt__rasterize(result, pts, wcount, windings, scale_x, scale_y,
             end
             -- add edge from j to k to the list
             n = n + 1
-            e[n].invert = 0
-            if invert ~= 0 then
+            e[n].invert = false
+            if invert then
                 if pts[p + j].y > pts[p + k].y then
-                    e[n].invert = 1
+                    e[n].invert = true
                     a = j
                     b = k
                 end
             else
                 if pts[p + j].y < pts[p + k].y then
-                    e[n].invert = 1
+                    e[n].invert = true
                     a = j
                     b = k
                 end
@@ -2054,8 +2066,12 @@ local function stbtt__rasterize(result, pts, wcount, windings, scale_x, scale_y,
     stbtt__rasterize_sorted_edges(result, e, n, vsubsample, off_x, off_y)
 end
 
+--- @param points? stbtt__point[]
+--- @param n       int
+--- @param x       float
+--- @param y       float
 local function stbtt__add_point(points, n, x, y)
-    if not points then return end -- during first pass, it's unallocated
+    if points == nil then return end -- during first pass, it's unallocated
     points[n + 1].x = x
     points[n + 1].y = y
 end
@@ -2141,7 +2157,7 @@ local function stbtt_FlattenCurves(vertices, num_verts, objspace_flatness)
 
     -- count how many "moves" there are to get the contour count
     for i = 1, num_verts do
-        if vertices[i].type == STBTT_vmove then
+        if vertices[i].type == STBTT_VTX.MOVE then
             n = n + 1
         end
     end
@@ -2161,7 +2177,7 @@ local function stbtt_FlattenCurves(vertices, num_verts, objspace_flatness)
         num_points = 0
         n = -1
         for i = 1, num_verts do
-            if vertices[i].type == STBTT_vmove then
+            if vertices[i].type == STBTT_VTX.MOVE then
                 -- start the next contour
                 if n >= 0 then
                     contour_lengths[n + 1] = num_points - start
@@ -2173,19 +2189,19 @@ local function stbtt_FlattenCurves(vertices, num_verts, objspace_flatness)
                 y = vertices[i].y
                 stbtt__add_point(points, num_points, x, y)
                 num_points = num_points + 1
-            elseif vertices[i].type == STBTT_vline then
+            elseif vertices[i].type == STBTT_VTX.LINE then
                 x = vertices[i].x
                 y = vertices[i].y
                 stbtt__add_point(points, num_points, x, y)
                 num_points = num_points + 1
-            elseif vertices[i].type == STBTT_vcurve then
+            elseif vertices[i].type == STBTT_VTX.CURVE then
                 num_points = stbtt__tesselate_curve(points, num_points, x, y,
                                     vertices[i].cx, vertices[i].cy,
                                     vertices[i].x, vertices[i].y,
                                     objspace_flatness_squared, 0)
                 x = vertices[i].x
                 y = vertices[i].y
-            elseif vertices[i].type == STBTT_vcubic then
+            elseif vertices[i].type == STBTT_VTX.CUBIC then
                 num_points = stbtt__tesselate_cubic(points, num_points, x, y,
                                     vertices[i].cx, vertices[i].cy,
                                     vertices[i].cx1, vertices[i].cy1,
@@ -2260,6 +2276,7 @@ end
 --- stbtt_PackFontRanges
 --- stbtt_PackFontRange
 --- stbtt_GetPackedQuad
+--- stbtt_GetScaledFontVMetrics
 
 local STBTT__OVER_MASK = STBTT_MAX_OVERSAMPLE - 1
 
@@ -2335,21 +2352,6 @@ function stbtt_MakeGlyphBitmapSubpixelPrefilter(info, output, out_w, out_h, out_
     return sub_x, sub_y
 end
 
-function stbtt_GetScaledFontVMetrics(fontdata, index, size)
-    local scale
-    local info = stbtt_fontinfo()
-
-    stbtt_InitFont(info, fontdata, stbtt_GetFontOffsetForIndex(fontdata, index))
-    scale = (size > 0) and stbtt_ScaleForPixelHeight(info, size) or stbtt_ScaleForMappingEmToPixels(info, -size)
-    local i_ascent, i_descent, i_lineGap = stbtt_GetFontVMetrics(info)
-
-    local ascent = i_ascent * scale
-    local descent = i_descent * scale
-    local lineGap = i_lineGap * scale
-
-    return ascent, descent, lineGap
-end
-
 -------------------
 -------------------
 ---
@@ -2377,16 +2379,14 @@ end
 --- stbtt__matchpair
 --- stbtt__matches
 
-function stbtt_GetFontOffsetForIndex(data, index)
-    return stbtt_GetFontOffsetForIndex_internal(data, index)
-end
+--- @param data  stbtt_slice
+--- @param index int
+function stbtt_GetFontOffsetForIndex(data, index) return stbtt_GetFontOffsetForIndex_internal(data, index) end
 
---- @param info stbtt_fontinfo
---- @param data stbtt_slice
+--- @param info   stbtt_fontinfo
+--- @param data   stbtt_slice
 --- @param offset int
-function stbtt_InitFont(info, data, offset)
-    return stbtt_InitFont_internal(info, data, offset)
-end
+function stbtt_InitFont(info, data, offset) return stbtt_InitFont_internal(info, data, offset) end
 
 return {
     fontinfo = stbtt_fontinfo,
