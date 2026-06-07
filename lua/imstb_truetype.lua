@@ -3,15 +3,6 @@
 
 --- STBTT_RASTERIZER_VERSION == 2
 
---- Note: When calling these functions, you must ensure
--- the `data` related param is correctly structured:
---   1. It's a table
---   2. Contains fields named `data`, `offset` and optionally `size`
---   3. the `data` is a generic 1-based table, and `offset` is initially 0
---   4. `size` is a constant since the creation of `data`, and size == #data
--- It's so painful to port og pointer arithmetics into Lua, so I just
--- use this instead
-
 local stbtt_fontinfo
 
 local stbtt_InitFont
@@ -27,28 +18,10 @@ local stbtt_GetFontOffsetForIndex
 local stbtt_ScaleForPixelHeight
 local stbtt_FindGlyphIndex
 
-------------------------------
-------------------------------
----
---- C Array / Pointer Mimicing
----
----
-
 --- @class stbtt_slice
 --- @field data   table
 --- @field offset int
 
---- @param p stbtt_slice
---- @param n integer
-local function ptr_inc(p, n) p.offset = p.offset + n end
-
---- @param p stbtt_slice
---- @param n integer
---- @return stbtt_slice
---- @nodiscard
-local function ptr_add(p, n) return { data = p.data, offset = p.offset + n, size = p.size } end
-
-local function ptr_index_get(p, i) if i == nil then i = 0 end; return p.data[p.offset + i + 1] end
 local function ptr_index_set(p, i, v) p.data[p.offset + i + 1] = v end
 
 local STBTT_MAX_OVERSAMPLE = 8
@@ -118,12 +91,13 @@ local function unsigned_char(val) return bit.band(val, 0xFF) end
 --- @field cursor int   # >= 0
 --- @field size   int
 
+--- @param initial_offset? int
 --- @return stbtt__buf
 --- @nodiscard
-local function stbtt__buf()
+local function stbtt__buf(initial_offset)
     return {
         data   = nil,
-        offset = 0,
+        offset = initial_offset or 0,
         cursor = 0,
         size   = nil
     }
@@ -131,7 +105,7 @@ end
 
 --- @class stbtt_fontinfo
 --- @field userdata         any
---- @field data             stbtt_slice # pointer to .ttf file
+--- @field data             table       # pointer to .ttf file
 --- @field fontstart        int         # offset of start of font
 --- @field numGlyphs        int         # number of glyphs, needed for range checking
 --- @field loca             int         # table location as offset from start of .ttf
@@ -391,12 +365,13 @@ local function stbtt__buf_get(b, n)
     return v
 end
 
---- @param p?   stbtt_slice
---- @param size int
+--- @param p?      table
+--- @param size    int
+--- @param offset? int
 --- @return stbtt__buf
 --- @nodiscard
-local function stbtt__new_buf(p, size)
-    local r = stbtt__buf()
+local function stbtt__new_buf(p, size, offset)
+    local r = stbtt__buf(offset)
     STBTT_assert(size < 0x40000000)
     r.data = p
     r.size = trunc(size)
@@ -535,29 +510,36 @@ end
 ---
 ---
 
---- stbtt_IsGlyphEmpty
---- stbtt_GetKerningTableLength
---- stbtt_GetKerningTable
---- stbtt__GetGlyphKernInfoAdvance
---- stbtt__GetCoverageIndex
---- stbtt__GetGlyphClass
---- stbtt__GetGlyphGPOSInfoAdvance
---- stbtt_GetGlyphKernAdvance
---- stbtt_FindSVGDoc
---- stbtt_GetGlyphSVG
---- stbtt_GetCodepointSVG
---- stbtt_GetCodepointKernAdvance
---- stbtt_GetFontVMetricsOS2
+--- UNIMPLEMENTED / UNUSED:
+---     stbtt_IsGlyphEmpty
+---     stbtt_GetKerningTableLength
+---     stbtt_GetKerningTable
+---     stbtt__GetGlyphKernInfoAdvance
+---     stbtt__GetCoverageIndex
+---     stbtt__GetGlyphClass
+---     stbtt__GetGlyphGPOSInfoAdvance
+---     stbtt_GetGlyphKernAdvance
+---     stbtt_FindSVGDoc
+---     stbtt_GetGlyphSVG
+---     stbtt_GetCodepointSVG
+---     stbtt_GetCodepointKernAdvance
+---     stbtt_GetFontVMetricsOS2
+---     stbtt_GetCodepointHMetrics
+---     stbtt_ScaleForMappingEmToPixels
+---     stbtt_GetFontBoundingBox
+---     stbtt_GetCodepointBitmapBox
+---     stbtt_GetCodepointBitmapBoxSubpixel
+---     stbtt_GetCodepointBox
 
-local function ttUSHORT(p, offset) local o = offset or 0; return stbtt_uint16(p.data[p.offset + 1 + o] * 256 + p.data[p.offset + 2 + o]) end
-local function ttSHORT(p, offset)  local o = offset or 0; return stbtt_int16(p.data[p.offset + 1 + o] * 256 + p.data[p.offset + 2 + o]) end
-local function ttULONG(p, offset)  local o = offset or 0; return stbtt_uint32(bit.lshift(p.data[p.offset + 1 + o], 24) + bit.lshift(p.data[p.offset + 2 + o], 16) + bit.lshift(p.data[p.offset + 3 + o], 8) + p.data[p.offset + 4 + o]) end
-local function ttLONG(p, offset)   local o = offset or 0; return stbtt_int32(bit.lshift(p.data[p.offset + 1 + o], 24) + bit.lshift(p.data[p.offset + 2 + o], 16) + bit.lshift(p.data[p.offset + 3 + o], 8) + p.data[p.offset + 4 + o]) end
+local function ttUSHORT(p, offset) return stbtt_uint16(p[offset + 1] * 256 + p[offset + 2]) end
+local function ttSHORT(p, offset)  return stbtt_int16(p[offset + 1] * 256 + p[offset + 2]) end
+local function ttULONG(p, offset)  return stbtt_uint32(bit.lshift(p[offset + 1], 24) + bit.lshift(p[offset + 2], 16) + bit.lshift(p[offset + 3], 8) + p[offset + 4]) end
+local function ttLONG(p, offset)   return stbtt_int32(bit.lshift(p[offset + 1], 24) + bit.lshift(p[offset + 2], 16) + bit.lshift(p[offset + 3], 8) + p[offset + 4]) end
 
-local function ttBYTE(p, offset) local o = offset or 0; return stbtt_uint8(p.data[p.offset + 1 + o]) end
-local function ttCHAR(p) return stbtt_int8(ptr_index_get(p)) end
+local function ttBYTE(p, offset) return stbtt_uint8(p[offset + 1]) end
+local function ttCHAR(p, offset) return stbtt_int8(p[offset + 1]) end
 
-local function stbtt_tag4(p, c0, c1, c2, c3, offset) local o = offset or 0; return p.data[p.offset + 1 + o] == c0 and p.data[p.offset + 2 + o] == c1 and p.data[p.offset + 3 + o] == c2 and p.data[p.offset + 4 + o] == c3 end
+local function stbtt_tag4(p, c0, c1, c2, c3, offset) offset = offset or 0; return p[offset + 1] == c0 and p[offset + 2] == c1 and p[offset + 3] == c2 and p[offset + 4] == c3 end
 local function stbtt_tag(p, str, offset) local c0, c1, c2, c3 = string.byte(str, 1, 4); return stbtt_tag4(p, c0, c1, c2, c3, offset) end
 
 local function stbtt__isfont(font)
@@ -676,7 +658,7 @@ local function stbtt_InitFont_internal(info, data, fontstart)
         info.fontdicts = stbtt__new_buf(nil, 0)
         info.fdselect = stbtt__new_buf(nil, 0)
 
-        info.cff = stbtt__new_buf(ptr_add(data, cff), 64 * 1024 * 1024) -- TODO: this should use size from table
+        info.cff = stbtt__new_buf(data, 64 * 1024 * 1024, cff) -- TODO: this should use size from table
         local b = info.cff
 
         -- read the header
@@ -897,10 +879,6 @@ local function stbtt_GetGlyphBox(info, glyph_index)
     return 1, x0, y0, x1, y1
 end
 
-local function stbtt_GetCodepointBox(info, codepoint)
-    return stbtt_GetGlyphBox(info, stbtt_FindGlyphIndex(info, codepoint))
-end
-
 --- @param vertices     stbtt_vertex[]
 --- @param num_vertices int
 --- @param was_off      bool
@@ -931,6 +909,10 @@ local function stbtt__close_shape(vertices, num_vertices, was_off, start_off, sx
     return num_vertices
 end
 
+--- @param info        stbtt_fontinfo
+--- @param glyph_index int
+--- @return int             num_vertices
+--- @return stbtt_vertex[]? vertices
 local function stbtt__GetGlyphShapeTT(info, glyph_index)
     local data = info.data
     local num_vertices
@@ -944,11 +926,11 @@ local function stbtt__GetGlyphShapeTT(info, glyph_index)
     local numberOfContours = ttSHORT(data, g)
 
     if numberOfContours > 0 then
-        local endPtsOfContours = ptr_add(data, g + 10)
-        local ins = ttUSHORT(data, g + 10 + numberOfContours * 2)
-        local points = ptr_add(data, g + 10 + numberOfContours * 2 + 2 + ins)
+        local endPtsOfContours = g + 10
+        local ins = ttUSHORT(data, endPtsOfContours + numberOfContours * 2)
+        local points = (endPtsOfContours + numberOfContours * 2 + 2 + ins) + 1 -- 1-based idx
 
-        local n = 1 + ttUSHORT(endPtsOfContours, numberOfContours * 2 - 2)
+        local n = 1 + ttUSHORT(data, endPtsOfContours + numberOfContours * 2 - 2)
         local m = n + 2 * numberOfContours
 
         vertices = {}
@@ -966,12 +948,12 @@ local function stbtt__GetGlyphShapeTT(info, glyph_index)
         local flags = 0
         for i = 1, n do
             if flagcount == 0 then
-                flags = ptr_index_get(points)
-                ptr_inc(points, 1)
+                flags = data[points]
+                points = points + 1
 
                 if bit.band(flags, 8) ~= 0 then
-                    flagcount = ptr_index_get(points)
-                    ptr_inc(points, 1)
+                    flagcount = data[points]
+                    points = points + 1
                 end
             else
                 flagcount = flagcount - 1
@@ -985,8 +967,8 @@ local function stbtt__GetGlyphShapeTT(info, glyph_index)
         for i = 1, n do
             flags = vertices[off + i].type
             if bit.band(flags, 2) ~= 0 then
-                local dx = ptr_index_get(points)
-                ptr_inc(points, 1)
+                local dx = data[points]
+                points = points + 1
                 if bit.band(flags, 16) ~= 0 then
                     x = x + dx
                 else
@@ -994,8 +976,8 @@ local function stbtt__GetGlyphShapeTT(info, glyph_index)
                 end
             else
                 if bit.band(flags, 16) == 0 then
-                    x = x + stbtt_int16(ptr_index_get(points, 0) * 256 + ptr_index_get(points, 1))
-                    ptr_inc(points, 2)
+                    x = x + stbtt_int16(data[points] * 256 + data[points + 1])
+                    points = points + 2
                 end
             end
 
@@ -1007,8 +989,8 @@ local function stbtt__GetGlyphShapeTT(info, glyph_index)
         for i = 1, n do
             flags = vertices[off + i].type
             if bit.band(flags, 4) ~= 0 then
-                local dy = ptr_index_get(points)
-                ptr_inc(points, 1)
+                local dy = data[points]
+                points = points + 1
                 if bit.band(flags, 32) ~= 0 then
                     y = y + dy
                 else
@@ -1016,8 +998,8 @@ local function stbtt__GetGlyphShapeTT(info, glyph_index)
                 end
             else
                 if bit.band(flags, 32) == 0 then
-                    y = y + stbtt_int16(ptr_index_get(points, 0) * 256 + ptr_index_get(points, 1))
-                    ptr_inc(points, 2)
+                    y = y + stbtt_int16(data[points] * 256 + data[points + 1])
+                    points = points + 2
                 end
             end
 
@@ -1057,7 +1039,7 @@ local function stbtt__GetGlyphShapeTT(info, glyph_index)
                 stbtt_setvertex(vertices[num_vertices + 1], STBTT_VTX.MOVE, sx, sy, 0, 0)
                 num_vertices = num_vertices + 1
                 was_off = false
-                next_move = 1 + ttUSHORT(endPtsOfContours, j * 2)
+                next_move = 1 + ttUSHORT(data, endPtsOfContours + j * 2)
                 j = j + 1
             else
                 if bit.band(flags, 1) == 0 then
@@ -1086,7 +1068,7 @@ local function stbtt__GetGlyphShapeTT(info, glyph_index)
         num_vertices = stbtt__close_shape(vertices, num_vertices, was_off, start_off, sx, sy, scx, scy, cx, cy)
     elseif numberOfContours < 0 then
         local more = 1
-        local comp = ptr_add(data, g + 10)
+        local comp = g + 10
         num_vertices = 0
 
         while more ~= 0 do
@@ -1097,16 +1079,16 @@ local function stbtt__GetGlyphShapeTT(info, glyph_index)
             local mtx = {1, 0, 0, 1, 0, 0}
             local m, n
 
-            flags = ttSHORT(comp) ptr_inc(comp, 2)
-            gidx = ttSHORT(comp) ptr_inc(comp, 2)
+            flags = ttSHORT(data, comp) comp = comp + 2
+            gidx = ttSHORT(data, comp) comp = comp + 2
 
             if bit.band(flags, 2) ~= 0 then
                 if bit.band(flags, 1) ~= 0 then
-                    mtx[5] = ttSHORT(comp) ptr_inc(comp, 2)
-                    mtx[6] = ttSHORT(comp) ptr_inc(comp, 2)
+                    mtx[5] = ttSHORT(data, comp) comp = comp + 2
+                    mtx[6] = ttSHORT(data, comp) comp = comp + 2
                 else
-                    mtx[5] = ttCHAR(comp) ptr_inc(comp, 1)
-                    mtx[6] = ttCHAR(comp) ptr_inc(comp, 1)
+                    mtx[5] = ttCHAR(data, comp) comp = comp + 1
+                    mtx[6] = ttCHAR(data, comp) comp = comp + 1
                 end
             else
                 -- TODO: handle matching point
@@ -1114,26 +1096,26 @@ local function stbtt__GetGlyphShapeTT(info, glyph_index)
             end
 
             if bit.band(flags, bit.lshift(1, 3)) ~= 0 then -- WE_HAVE_A_SCALE
-                mtx[4] = ttSHORT(comp) / 16384.0
+                mtx[4] = ttSHORT(data, comp) / 16384.0
                 mtx[1] = mtx[4]
-                ptr_inc(comp, 2)
+                comp = comp + 2
 
                 mtx[3] = 0
                 mtx[2] = mtx[3]
             elseif bit.band(flags, bit.lshift(1, 6)) ~= 0 then -- WE_HAVE_AN_X_AND_YSCALE
-                mtx[1] = ttSHORT(comp) / 16384.0
-                ptr_inc(comp, 2)
+                mtx[1] = ttSHORT(data, comp) / 16384.0
+                comp = comp + 2
 
                 mtx[3] = 0
                 mtx[2] = mtx[3]
 
-                mtx[4] = ttSHORT(comp) / 16384.0
-                ptr_inc(comp, 2)
+                mtx[4] = ttSHORT(data, comp) / 16384.0
+                comp = comp + 2
             elseif bit.band(flags, bit.lshift(1, 7)) ~= 0 then -- WE_HAVE_A_TWO_BY_TWO
-                mtx[1] = ttSHORT(comp) / 16384.0 ptr_inc(comp, 2)
-                mtx[2] = ttSHORT(comp) / 16384.0 ptr_inc(comp, 2)
-                mtx[3] = ttSHORT(comp) / 16384.0 ptr_inc(comp, 2)
-                mtx[4] = ttSHORT(comp) / 16384.0 ptr_inc(comp, 2)
+                mtx[1] = ttSHORT(data, comp) / 16384.0 comp = comp + 2
+                mtx[2] = ttSHORT(data, comp) / 16384.0 comp = comp + 2
+                mtx[3] = ttSHORT(data, comp) / 16384.0 comp = comp + 2
+                mtx[4] = ttSHORT(data, comp) / 16384.0 comp = comp + 2
             end
 
             m = STBTT_sqrt(mtx[1] * mtx[1] + mtx[2] * mtx[2])
@@ -1291,7 +1273,10 @@ local function stbtt__cid_get_glyph_subrs(info, glyph_index)
     return stbtt__get_subrs(info.cff, stbtt__cff_index_get(info.fontdicts, fdselector))
 end
 
-local function stbtt__run_charstring(info, glyph_index, c) -- const stbtt_fontinfo *info, int glyph_index, stbtt__csctx *c
+--- @param info        stbtt_fontinfo
+--- @param glyph_index int
+--- @param c           stbtt__csctx
+local function stbtt__run_charstring(info, glyph_index, c)
     local in_header = true
     local maskbits = 0
     local subr_stack_height = 0
@@ -1558,6 +1543,10 @@ local function stbtt__run_charstring(info, glyph_index, c) -- const stbtt_fontin
     return STBTT__CSERR("no endchar")
 end
 
+--- @param info        stbtt_fontinfo
+--- @param glyph_index int
+--- @return int             num_vertices
+--- @return stbtt_vertex[]? vertices
 function stbtt__GetGlyphShapeT2(info, glyph_index)
     -- runs the charstring twice, once to count and once to output (to avoid realloc)
     local vertices = nil
@@ -1576,18 +1565,25 @@ function stbtt__GetGlyphShapeT2(info, glyph_index)
     return 0, vertices
 end
 
-function stbtt__GetGlyphInfoT2(info, glyph_index) -- const stbtt_fontinfo *info, int glyph_index, int *x0, int *y0, int *x1, int *y1
+--- @param info        stbtt_fontinfo
+--- @param glyph_index int
+--- @return int
+--- @return int x0
+--- @return int y0
+--- @return int x1
+--- @return int y1
+function stbtt__GetGlyphInfoT2(info, glyph_index)
     local c = STBTT__CSCTX_INIT(true)
     local r = stbtt__run_charstring(info, glyph_index, c)
-    local x0, y0, x1, y1
-    x0 = (r ~= 0) and c.min_x or 0
-    y0 = (r ~= 0) and c.min_y or 0
-    x1 = (r ~= 0) and c.max_x or 0
-    y1 = (r ~= 0) and c.max_y or 0
+    local x0 = (r ~= 0) and c.min_x or 0
+    local y0 = (r ~= 0) and c.min_y or 0
+    local x1 = (r ~= 0) and c.max_x or 0
+    local y1 = (r ~= 0) and c.max_y or 0
     return ((r ~= 0) and c.num_vertices or 0), x0, y0, x1, y1
 end
 
---- @return int, table?
+--- @param info        stbtt_fontinfo
+--- @param glyph_index int
 function stbtt_GetGlyphShape(info, glyph_index)
     if info.cff.size == 0 then
         return stbtt__GetGlyphShapeTT(info, glyph_index)
@@ -1596,7 +1592,9 @@ function stbtt_GetGlyphShape(info, glyph_index)
     end
 end
 
-function stbtt_GetGlyphHMetrics(info, glyph_index) -- const stbtt_fontinfo *info, int glyph_index, int *advanceWidth, int *leftSideBearing
+--- @param info        stbtt_fontinfo
+--- @param glyph_index int
+function stbtt_GetGlyphHMetrics(info, glyph_index)
     local numOfLongHorMetrics = ttUSHORT(info.data, info.hhea + 34)
 
     local advanceWidth, leftSideBearing
@@ -1611,10 +1609,6 @@ function stbtt_GetGlyphHMetrics(info, glyph_index) -- const stbtt_fontinfo *info
     return advanceWidth, leftSideBearing
 end
 
-local function stbtt_GetCodepointHMetrics(info, codepoint)
-    return stbtt_GetGlyphHMetrics(info, stbtt_FindGlyphIndex(info, codepoint))
-end
-
 --- @param info stbtt_fontinfo
 function stbtt_GetFontVMetrics(info)
     local ascent = ttSHORT(info.data, info.hhea + 4)
@@ -1624,24 +1618,11 @@ function stbtt_GetFontVMetrics(info)
     return ascent, descent, lineGap
 end
 
---- @param info stbtt_fontinfo
-local function stbtt_GetFontBoundingBox(info)
-    local x0 = ttSHORT(info.data, info.head + 36)
-    local y0 = ttSHORT(info.data, info.head + 38)
-    local x1 = ttSHORT(info.data, info.head + 40)
-    local y1 = ttSHORT(info.data, info.head + 42)
-
-    return x0, y0, x1, y1
-end
-
+--- @param info   stbtt_fontinfo
+--- @param height float
 function stbtt_ScaleForPixelHeight(info, height)
     local fheight = ttSHORT(info.data, info.hhea + 4) - ttSHORT(info.data, info.hhea + 6)
     return height / fheight
-end
-
-local function stbtt_ScaleForMappingEmToPixels(info, pixels)
-    local unitsPerEm = ttUSHORT(info.data, info.head + 18)
-    return pixels / unitsPerEm
 end
 
 ------------------------------------
@@ -1651,6 +1632,12 @@ end
 ---
 ---
 
+--- @param font    stbtt_fontinfo
+--- @param glyph   int
+--- @param scale_x float
+--- @param scale_y float
+--- @param shift_x float
+--- @param shift_y float
 function stbtt_GetGlyphBitmapBoxSubpixel(font, glyph, scale_x, scale_y, shift_x, shift_y)
     local n, x0, y0, x1, y1 = stbtt_GetGlyphBox(font, glyph)
 
@@ -1672,16 +1659,12 @@ function stbtt_GetGlyphBitmapBoxSubpixel(font, glyph, scale_x, scale_y, shift_x,
     return ix0, iy0, ix1, iy1
 end
 
+--- @param font    stbtt_fontinfo
+--- @param glyph   int
+--- @param scale_x float
+--- @param scale_y float
 function stbtt_GetGlyphBitmapBox(font, glyph, scale_x, scale_y)
     return stbtt_GetGlyphBitmapBoxSubpixel(font, glyph, scale_x, scale_y, 0.0, 0.0)
-end
-
-local function stbtt_GetCodepointBitmapBoxSubpixel(font, codepoint, scale_x, scale_y, shift_x, shift_y)
-    return stbtt_GetGlyphBitmapBoxSubpixel(font, stbtt_FindGlyphIndex(font, codepoint), scale_x, scale_y, shift_x, shift_y)
-end
-
-local function stbtt_GetCodepointBitmapBox(font, codepoint, scale_x, scale_y)
-    return stbtt_GetCodepointBitmapBoxSubpixel(font, codepoint, scale_x, scale_y, 0.0, 0.0)
 end
 
 --------------
@@ -1691,11 +1674,20 @@ end
 ---
 ---
 
---- stbtt_MakeCodepointBitmap
---- stbtt_MakeCodepointBitmapSubpixelPrefilter
---- stbtt_GetGlyphBitmap
---- stbtt_GetGlyphBitmapSubpixel
+--- UNIMPLEMENTED / UNUSED:
+---     stbtt_MakeCodepointBitmap
+---     stbtt_MakeCodepointBitmapSubpixelPrefilter
+---     stbtt_GetGlyphBitmap
+---     stbtt_MakeGlyphBitmap
+---     stbtt_GetGlyphBitmapSubpixel
 
+--- @param scanline float[]
+--- @param x        int
+--- @param e        stbtt__active_edge
+--- @param x0       float
+--- @param y0       float
+--- @param x1       float
+--- @param y1       float
 local function stbtt__handle_clipped_edge(scanline, x, e, x0, y0, x1, y1)
     if y0 == y1 then return end
     STBTT_assert(y0 < y1)
@@ -1734,20 +1726,35 @@ local function stbtt__handle_clipped_edge(scanline, x, e, x0, y0, x1, y1)
     end
 end
 
+--- @param height       float
+--- @param top_width    float
+--- @param bottom_width float
 local function stbtt__sized_trapezoid_area(height, top_width, bottom_width)
     STBTT_assert(top_width >= 0)
     STBTT_assert(bottom_width >= 0)
     return (top_width + bottom_width) / 2.0 * height
 end
 
+--- @param height float
+--- @param tx0    float
+--- @param tx1    float
+--- @param bx0    float
+--- @param bx1    float
 local function stbtt__position_trapezoid_area(height, tx0, tx1, bx0, bx1)
     return stbtt__sized_trapezoid_area(height, tx1 - tx0, bx1 - bx0)
 end
 
+--- @param height float
+--- @param width  float
 local function stbtt__sized_triangle_area(height, width)
     return height * width / 2
 end
 
+--- @param scanline      float[]
+--- @param scanline_fill float[]
+--- @param len           int
+--- @param e             stbtt__active_edge
+--- @param y_top         float
 local function stbtt__fill_active_edges_new(scanline, scanline_fill, len, e, y_top)
     local y_bottom = y_top + 1
 
@@ -1915,6 +1922,12 @@ local function stbtt__fill_active_edges_new(scanline, scanline_fill, len, e, y_t
     end
 end
 
+--- @param result     stbtt__bitmap
+--- @param e          stbtt__edge
+--- @param n          int
+--- @param vsubsample int
+--- @param off_x      int
+--- @param off_y      int
 local function stbtt__rasterize_sorted_edges(result, e, n, vsubsample, off_x, off_y)
     local active = nil
 
@@ -1994,16 +2007,30 @@ local function stbtt__rasterize_sorted_edges(result, e, n, vsubsample, off_x, of
     end
 end
 
+--- @param a stbtt__edge
+--- @param b stbtt__edge
 local STBTT__COMPARE = function(a, b)
     if a.y0 == nil then return false end -- sentinels on the back
     if b.y0 == nil then return true  end
     return a.y0 < b.y0
 end
 
+--- @param p stbtt__edge[]
 local function stbtt__sort_edges(p)
     STBTT_sort(p, STBTT__COMPARE)
 end
 
+--- @param result   stbtt__bitmap
+--- @param pts      stbtt__point[]
+--- @param wcount   int[]
+--- @param windings int
+--- @param scale_x  float
+--- @param scale_y  float
+--- @param shift_x  float
+--- @param shift_y  float
+--- @param off_x    int
+--- @param off_y    int
+--- @param invert   bool
 local function stbtt__rasterize(result, pts, wcount, windings, scale_x, scale_y, shift_x, shift_y, off_x, off_y, invert)
     local y_scale_inv = (invert) and -scale_y or scale_y
     local e
@@ -2077,7 +2104,17 @@ local function stbtt__add_point(points, n, x, y)
 end
 
 -- tessellate until threshold p is happy... @TODO warped to compensate for non-linear stretching
---- @return integer
+--- @param points?                   stbtt__point[]
+--- @param num_points                int
+--- @param x0                        float
+--- @param y0                        float
+--- @param x1                        float
+--- @param y1                        float
+--- @param x2                        float
+--- @param y2                        float
+--- @param objspace_flatness_squared float
+--- @param n                         int
+--- @return int num_points # updated num_points passed in
 local function stbtt__tesselate_curve(points, num_points, x0, y0, x1, y1, x2, y2, objspace_flatness_squared, n)
     -- midpoint
     local mx = (x0 + 2 * x1 + x2) / 4
@@ -2101,7 +2138,19 @@ local function stbtt__tesselate_curve(points, num_points, x0, y0, x1, y1, x2, y2
     return num_points
 end
 
---- @return integer
+--- @param points?                   stbtt__point[]
+--- @param num_points                int
+--- @param x0                        float
+--- @param y0                        float
+--- @param x1                        float
+--- @param y1                        float
+--- @param x2                        float
+--- @param y2                        float
+--- @param x3                        float
+--- @param y3                        float
+--- @param objspace_flatness_squared float
+--- @param n                         int
+--- @return int num_points # updated num_points passed in
 local function stbtt__tesselate_cubic(points, num_points, x0, y0, x1, y1, x2, y2, x3, y3, objspace_flatness_squared, n)
     -- @TODO this "flatness" calculation is just made-up nonsense that seems to work well enough
     local dx0 = x1 - x0
@@ -2146,7 +2195,12 @@ local function stbtt__tesselate_cubic(points, num_points, x0, y0, x1, y1, x2, y2
     return num_points
 end
 
---- @return stbtt__point[]?, integer?, integer[]?
+--- @param vertices          stbtt_vertex[]
+--- @param num_verts         int
+--- @param objspace_flatness float
+--- @return stbtt__point[]? points
+--- @return int?            num_contours
+--- @return int[]?          contour_lengths
 local function stbtt_FlattenCurves(vertices, num_verts, objspace_flatness)
     local points = nil
     local num_points = 0
@@ -2217,6 +2271,17 @@ local function stbtt_FlattenCurves(vertices, num_verts, objspace_flatness)
     return points, num_contours, contour_lengths
 end
 
+--- @param result             stbtt__bitmap
+--- @param flatness_in_pixels float
+--- @param vertices           stbtt_vertex[]
+--- @param num_verts          int
+--- @param scale_x            float
+--- @param scale_y            float
+--- @param shift_x            float
+--- @param shift_y            float
+--- @param x_off              int
+--- @param y_off              int
+--- @param invert             bool
 local function stbtt_Rasterize(result, flatness_in_pixels, vertices, num_verts, scale_x, scale_y, shift_x, shift_y, x_off, y_off, invert)
     local scale = (scale_x > scale_y) and scale_y or scale_x
     local windings
@@ -2226,10 +2291,22 @@ local function stbtt_Rasterize(result, flatness_in_pixels, vertices, num_verts, 
     windings, winding_count, winding_lengths = stbtt_FlattenCurves(vertices, num_verts, flatness_in_pixels / scale)
 
     if windings then
+        --- @cast winding_lengths int[]
+        --- @cast winding_count   int
         stbtt__rasterize(result, windings, winding_lengths, winding_count, scale_x, scale_y, shift_x, shift_y, x_off, y_off, invert)
     end
 end
 
+--- @param info       stbtt_fontinfo
+--- @param output     stbtt_slice
+--- @param out_w      int
+--- @param out_h      int
+--- @param out_stride int
+--- @param scale_x    float
+--- @param scale_y    float
+--- @param shift_x    float
+--- @param shift_y    float
+--- @param glyph      int
 local function stbtt_MakeGlyphBitmapSubpixel(info, output, out_w, out_h, out_stride, scale_x, scale_y, shift_x, shift_y, glyph)
     local num_verts, vertices = stbtt_GetGlyphShape(info, glyph)
     local gbm = stbtt__bitmap()
@@ -2241,12 +2318,8 @@ local function stbtt_MakeGlyphBitmapSubpixel(info, output, out_w, out_h, out_str
     gbm.stride = out_stride
 
     if gbm.w ~= 0 and gbm.h ~= 0 then
-        stbtt_Rasterize(gbm, 0.35, vertices, num_verts, scale_x, scale_y, shift_x, shift_y, ix0, iy0, 1)
+        stbtt_Rasterize(gbm, 0.35, vertices, num_verts, scale_x, scale_y, shift_x, shift_y, ix0, iy0, true)
     end
-end
-
-local function stbtt_MakeGlyphBitmap(info, output, out_w, out_h, out_stride, scale_x, scale_y, glyph)
-    stbtt_MakeGlyphBitmapSubpixel(info, output, out_w, out_h, out_stride, scale_x, scale_y, 0.0, 0.0, glyph)
 end
 
 -----------------
@@ -2256,9 +2329,10 @@ end
 ---
 ---
 
---- stbtt_BakeFontBitmap_internal
---- stbtt_BakeFontBitmap
---- stbtt_GetBakedQuad
+--- UNIMPLEMENTED / UNUSED:
+---     stbtt_BakeFontBitmap_internal
+---     stbtt_BakeFontBitmap
+---     stbtt_GetBakedQuad
 
 ---------------------------
 ---------------------------
@@ -2267,19 +2341,25 @@ end
 ---
 ---
 
---- stbtt_PackBegin
---- stbtt_PackSetOversampling
---- stbtt_PackSetSkipMissingCodepoints
---- stbtt_PackFontRangesGatherRects
---- stbtt_PackFontRangesRenderIntoRects
---- stbtt_PackFontRangesPackRects
---- stbtt_PackFontRanges
---- stbtt_PackFontRange
---- stbtt_GetPackedQuad
---- stbtt_GetScaledFontVMetrics
+--- UNIMPLEMENTED / UNUSED:
+---     stbtt_PackBegin
+---     stbtt_PackSetOversampling
+---     stbtt_PackSetSkipMissingCodepoints
+---     stbtt_PackFontRangesGatherRects
+---     stbtt_PackFontRangesRenderIntoRects
+---     stbtt_PackFontRangesPackRects
+---     stbtt_PackFontRanges
+---     stbtt_PackFontRange
+---     stbtt_GetPackedQuad
+---     stbtt_GetScaledFontVMetrics
 
 local STBTT__OVER_MASK = STBTT_MAX_OVERSAMPLE - 1
 
+--- @param pixels          table
+--- @param w               int
+--- @param h               int
+--- @param stride_in_bytes int
+--- @param kernel_width    unsigned_int
 local function stbtt__h_prefilter(pixels, w, h, stride_in_bytes, kernel_width)
     local buffer = {}
     local safe_w = w - kernel_width
@@ -2304,6 +2384,11 @@ local function stbtt__h_prefilter(pixels, w, h, stride_in_bytes, kernel_width)
     end
 end
 
+--- @param pixels          table
+--- @param w               int
+--- @param h               int
+--- @param stride_in_bytes int
+--- @param kernel_width    unsigned_int
 local function stbtt__v_prefilter(pixels, w, h, stride_in_bytes, kernel_width)
     local buffer = {}
     local safe_h = h - kernel_width
@@ -2328,6 +2413,8 @@ local function stbtt__v_prefilter(pixels, w, h, stride_in_bytes, kernel_width)
     end
 end
 
+--- @param oversample int
+--- @return float
 local function stbtt__oversample_shift(oversample)
     if oversample == 0 then
         return 0.0
@@ -2335,15 +2422,27 @@ local function stbtt__oversample_shift(oversample)
     return -(oversample - 1) / (2.0 * oversample)
 end
 
+--- @param info        stbtt_fontinfo
+--- @param output      stbtt_slice
+--- @param out_w       int
+--- @param out_h       int
+--- @param out_stride  int
+--- @param scale_x     float
+--- @param scale_y     float
+--- @param shift_x     float
+--- @param shift_y     float
+--- @param prefilter_x int
+--- @param prefilter_y int
+--- @param glyph       int
 function stbtt_MakeGlyphBitmapSubpixelPrefilter(info, output, out_w, out_h, out_stride, scale_x, scale_y, shift_x, shift_y, prefilter_x, prefilter_y, glyph)
     stbtt_MakeGlyphBitmapSubpixel(info, output, out_w - (prefilter_x - 1), out_h - (prefilter_y - 1), out_stride, scale_x, scale_y, shift_x, shift_y, glyph)
 
     if prefilter_x > 1 then
-        stbtt__h_prefilter(output, out_w, out_h, out_stride, prefilter_x)
+        stbtt__h_prefilter(output.data, out_w, out_h, out_stride, prefilter_x)
     end
 
     if prefilter_y > 1 then
-        stbtt__v_prefilter(output, out_w, out_h, out_stride, prefilter_y)
+        stbtt__v_prefilter(output.data, out_w, out_h, out_stride, prefilter_y)
     end
 
     local sub_x, sub_y
@@ -2359,12 +2458,13 @@ end
 ---
 ---
 
---- stbtt__ray_intersect_bezier
---- stbtt__compute_crossings_x
---- stbtt__cuberoot
---- stbtt__solve_cubic
---- stbtt_GetGlyphSDF
---- stbtt_GetCodepointSDF
+--- UNIMPLEMENTED / UNUSED:
+---     stbtt__ray_intersect_bezier
+---     stbtt__compute_crossings_x
+---     stbtt__cuberoot
+---     stbtt__solve_cubic
+---     stbtt_GetGlyphSDF
+---     stbtt_GetCodepointSDF
 
 -----------------------------------------------------
 -----------------------------------------------------
@@ -2373,18 +2473,19 @@ end
 ---
 ---
 
---- stbtt__CompareUTF8toUTF16_bigendian_prefix
---- stbtt_CompareUTF8toUTF16_bigendian_internal
---- stbtt_GetFontNameString
---- stbtt__matchpair
---- stbtt__matches
+--- UNIMPLEMENTED / UNUSED:
+---     stbtt__CompareUTF8toUTF16_bigendian_prefix
+---     stbtt_CompareUTF8toUTF16_bigendian_internal
+---     stbtt_GetFontNameString
+---     stbtt__matchpair
+---     stbtt__matches
 
---- @param data  stbtt_slice
+--- @param data  table
 --- @param index int
 function stbtt_GetFontOffsetForIndex(data, index) return stbtt_GetFontOffsetForIndex_internal(data, index) end
 
 --- @param info   stbtt_fontinfo
---- @param data   stbtt_slice
+--- @param data   table
 --- @param offset int
 function stbtt_InitFont(info, data, offset) return stbtt_InitFont_internal(info, data, offset) end
 

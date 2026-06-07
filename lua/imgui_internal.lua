@@ -848,7 +848,7 @@ end
 --- @field PackNodes                ImVector<stbrp_node>
 --- @field Rects                    ImVector<ImTextureRect>
 --- @field RectsIndex               ImVector<ImFontAtlasRectEntry>
---- @field TempBuffer               ImSlice
+--- @field TempBuffer               ImSlice                        # TODO: should be ImVector<char>
 --- @field RectsIndexFreeListStart  int
 --- @field RectsPackedCount         int
 --- @field RectsPackedSurface       int

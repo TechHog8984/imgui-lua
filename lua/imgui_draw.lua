@@ -1200,7 +1200,8 @@ local function ImGui_ImplStbTrueType_FontBakedLoadGlyph(atlas, src, baked, _, co
         -- builder.TempBuffer:resize(w * h * 1)
         local bitmap_pixels = builder.TempBuffer
         IM_SLICE_FILL(bitmap_pixels, 0, w * h * 1)
-
+        -- TODO: no slices on pixels data
+        --- @diagnostic disable-next-line
         local sub_x, sub_y = stbtt.MakeGlyphBitmapSubpixelPrefilter(bd_font_data.FontInfo, bitmap_pixels, w, h, w,
             scale_for_raster_x, scale_for_raster_y, 0, 0, oversample_h, oversample_v, glyph_index)
 

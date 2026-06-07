@@ -771,7 +771,7 @@ end
 
 --- @class ImFontConfig
 --- @field Name                 string
---- @field FontData             ImSlice
+--- @field FontData             table
 --- @field FontDataSize         int
 --- @field FontDataOwnedByAtlas bool
 --- @field MergeMode            bool

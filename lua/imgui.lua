@@ -187,7 +187,7 @@ if not IMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS then
 
     --- @param filename string
     --- @param mode     string
-    --- @return ImSlice?, integer?
+    --- @return table?, integer?
     function ImStd.ImFileLoadToMemory(filename, mode)
         local f = ImStd.ImFileOpen(filename, mode)
         if not f then return end
@@ -198,9 +198,9 @@ if not IMGUI_DISABLE_DEFAULT_FILE_FUNCTIONS then
             return
         end
 
-        local file_data = IM_SLICE()
-        ImStd.ImFileRead(f, file_data.data, file_size)
-        if #file_data.data == 0 then
+        local file_data = {}
+        ImStd.ImFileRead(f, file_data, file_size)
+        if #file_data == 0 then
             ImStd.ImFileClose(f)
             return
         end
