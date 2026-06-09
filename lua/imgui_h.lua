@@ -5,8 +5,11 @@
 
 local _band = bit.band
 
---- @class ImU8 : integer
---- @class ImS8 : integer
+--- @class char          : integer
+--- @class unsigned_char : integer
+
+--- @alias ImS8 char
+--- @alias ImU8 unsigned_char
 
 --- @class ImU16 : integer
 --- @class ImS16 : integer
@@ -30,9 +33,6 @@ function ImS16(val) return _band(val, 0xFFFF) - (_band(val, 0x8000) ~= 0 and 0x1
 --- @alias unsigned_short integer
 
 --- @alias size_t unsigned_int
-
---- @alias char          integer
---- @alias unsigned_char integer
 
 --- @alias ImWchar16 unsigned_short
 --- @alias ImWchar   ImWchar16
@@ -67,53 +67,6 @@ function ImGui.GetMetatables() return MT end
 function IM_ASSERT(_EXPR, _MSG) assert((_EXPR), _MSG) end
 
 IM_ASSERT_PARANOID = IM_ASSERT
-
----------------------------------------------------------------------------------------
--- [SECTION] C POINTER / ARRAY LIKE OPERATIONS SUPPORT
----------------------------------------------------------------------------------------
-
---- @class ImSlice
---- @field data table
---- @field offset integer
-
---- @param _data table?
---- @return ImSlice
-function IM_SLICE(_data) return {data = _data or {}, offset = 0} end
-
---- @param p ImSlice
---- @param i integer
---- @return any
-function IM_SLICE_GET(p, i) return p.data[p.offset + i + 1] end
-
---- @param p ImSlice
---- @param i integer
---- @param v any
-function IM_SLICE_SET(p, i, v) p.data[p.offset + i + 1] = v end
-
---- @param p ImSlice
---- @param n integer?
-function IM_SLICE_INC(p, n) p.offset = p.offset + (n or 1) end
-
---- @param p ImSlice
-function IM_SLICE_RESET(p) p.offset = 0 end
-
---- @param _dst ImSlice
---- @param _src ImSlice
---- @param _cnt integer
-function IM_SLICE_COPY(_dst, _src, _cnt)
-    for i = 0, _cnt - 1 do
-        IM_SLICE_SET(_dst, i, IM_SLICE_GET(_src, i))
-    end
-end
-
---- @param _dst ImSlice
---- @param _val any
---- @param _cnt integer
-function IM_SLICE_FILL(_dst, _val, _cnt)
-    for i = 0, _cnt - 1 do
-        IM_SLICE_SET(_dst, i, _val)
-    end
-end
 
 IM_DRAWLIST_TEX_LINES_WIDTH_MAX = 32
 ImTextureID_Invalid = -1
@@ -608,7 +561,7 @@ end
 --- @field Width                int
 --- @field Height               int
 --- @field BytesPerPixel        int
---- @field Pixels               ImSlice<unsigned_char>
+--- @field Pixels               unsigned_char[]
 --- @field UsedRect             ImTextureRect
 --- @field UpdateRect           ImTextureRect
 --- @field Updates              ImVector<ImTextureRect>
@@ -633,7 +586,7 @@ function ImTextureData()
     this.Width                = 0
     this.Height               = 0
     this.BytesPerPixel        = 0
-    this.Pixels               = IM_SLICE()
+    this.Pixels               = nil
     this.UsedRect             = ImTextureRect()
     this.UpdateRect           = ImTextureRect()
     this.Updates              = ImVector()
@@ -647,12 +600,8 @@ end
 
 --- @param x int
 --- @param y int
---- @return ImSlice
---- @nodiscard
 function MT.ImTextureData:GetPixelsAt(x, y)
-    local pixels = IM_SLICE(self.Pixels.data)
-    IM_SLICE_INC(pixels, (x + y * self.Width) * self.BytesPerPixel)
-    return pixels
+    return self.Pixels, (x + y * self.Width) * self.BytesPerPixel + 1
 end
 
 function MT.ImTextureData:GetPitch() return self.Width * self.BytesPerPixel end

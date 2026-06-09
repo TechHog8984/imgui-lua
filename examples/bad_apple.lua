@@ -1,7 +1,7 @@
 --- A crappy Bad Apple player using windows
 -- https://github.com/mon/bad_apple_virus
 
-local raw_frames, size = ImStd.ImFileLoadToMemory("data/boxes_badapple.dat", "rb") --- @cast raw_frames ImSlice
+local raw_frames, size = ImStd.ImFileLoadToMemory("data/boxes_badapple.dat", "rb")
 
 local curr_frame = 0
 
@@ -9,12 +9,13 @@ local frames = {}
 local current = {}
 
 -- This is probably unnecessary, can just read on the fly
-while raw_frames.offset < size do
-    local x = IM_SLICE_GET(raw_frames, 0)
-    local y = IM_SLICE_GET(raw_frames, 1)
-    local w = IM_SLICE_GET(raw_frames, 2)
-    local h = IM_SLICE_GET(raw_frames, 3)
-    IM_SLICE_INC(raw_frames, 4)
+local raw_frames_base = 1
+while raw_frames_base <= size do
+    local x = raw_frames[raw_frames_base + 0]
+    local y = raw_frames[raw_frames_base + 1]
+    local w = raw_frames[raw_frames_base + 2]
+    local h = raw_frames[raw_frames_base + 3]
+    raw_frames_base = raw_frames_base + 4
 
     if w == 0 then
         table.insert(frames, current)

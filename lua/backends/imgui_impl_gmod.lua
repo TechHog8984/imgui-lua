@@ -845,13 +845,13 @@ function ImGui_ImplGMOD_UpdateTexture(tex)
         cam.Start2D()
 
         for y = 0, tex.Height - 1 do
-            local row = tex:GetPixelsAt(0, y)
+            local row, row_base = tex:GetPixelsAt(0, y)
             for x = 0, tex.Width - 1 do
                 local pixelOffset = x * 4
-                local r = IM_SLICE_GET(row, pixelOffset + 0)
-                local g = IM_SLICE_GET(row, pixelOffset + 1)
-                local b = IM_SLICE_GET(row, pixelOffset + 2)
-                local a = IM_SLICE_GET(row, pixelOffset + 3)
+                local r = row[row_base + pixelOffset + 0]
+                local g = row[row_base + pixelOffset + 1]
+                local b = row[row_base + pixelOffset + 2]
+                local a = row[row_base + pixelOffset + 3]
 
                 surface.SetDrawColor(r, g, b, a)
                 surface.DrawRect(x, y, 1, 1)
@@ -884,14 +884,14 @@ function ImGui_ImplGMOD_UpdateTexture(tex)
 
         for _, r in tex.Updates:iter() do
             for y = r.y, r.y + r.h - 1 do
-                local row = tex:GetPixelsAt(r.x, y)
+                local row, row_base = tex:GetPixelsAt(r.x, y)
 
                 for x_offset = 0, r.w - 1 do
                     local pixel_offset = x_offset * 4
-                    local r_byte = IM_SLICE_GET(row, pixel_offset + 0)
-                    local g_byte = IM_SLICE_GET(row, pixel_offset + 1)
-                    local b_byte = IM_SLICE_GET(row, pixel_offset + 2)
-                    local a_byte = IM_SLICE_GET(row, pixel_offset + 3)
+                    local r_byte = row[row_base + pixel_offset + 0]
+                    local g_byte = row[row_base + pixel_offset + 1]
+                    local b_byte = row[row_base + pixel_offset + 2]
+                    local a_byte = row[row_base + pixel_offset + 3]
 
                     surface.SetDrawColor(r_byte, g_byte, b_byte, a_byte)
                     surface.DrawRect(r.x + x_offset, y, 1, 1)

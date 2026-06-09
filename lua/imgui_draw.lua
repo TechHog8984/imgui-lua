@@ -15,8 +15,18 @@ local function str_to_table(str)
     local t = {} for i = 1, #str do t[i] = string.sub(str, i, i) end return t
 end
 
+--- @param buf  char[] # 1-based
+--- @param base int    # 1-based start index
+--- @param u32  ImU32
+local function write_u32(buf, base, u32)
+    buf[base + 0] = bit.band(u32, 0xFF)
+    buf[base + 1] = bit.band(bit.rshift(u32, 8), 0xFF)
+    buf[base + 2] = bit.band(bit.rshift(u32, 16), 0xFF)
+    buf[base + 3] = bit.band(bit.rshift(u32, 24), 0xFF)
+end
+
 --- Original ImGui pixel art!
-FONT_ATLAS_DEFAULT_TEX_DATA_PIXELS = IM_SLICE(str_to_table(
+local FONT_ATLAS_DEFAULT_TEX_DATA_PIXELS = str_to_table(
     "..-         -XXXXXXX-    X    -           X           -XXXXXXX          -          XXXXXXX-     XX          - XX       XX " ..
     "..-         -X.....X-   X.X   -          X.X          -X.....X          -          X.....X-    X..X         -X..X     X..X" ..
     "---         -XXX.XXX-  X...X  -         X...X         -X....X           -           X....X-    X..X         -X...X   X...X" ..
@@ -44,7 +54,7 @@ FONT_ATLAS_DEFAULT_TEX_DATA_PIXELS = IM_SLICE(str_to_table(
     "                                                      -  X..X           X..X  -                                           " ..
     "                                                      -   X.X           X.X   -                                           " ..
     "                                                      -    XX           XX    -                                           "
-))
+)
 
 local FONT_ATLAS_DEFAULT_TEX_CURSOR_DATA = {
     -- Pos ..........  Size .........  Offset .......
@@ -564,52 +574,51 @@ function ImFontAtlasUpdateNewFrame(atlas, frame_count, renderer_has_textures)
     end
 end
 
---- @param src_pixels ImSlice
---- @param src_fmt    ImTextureFormat
---- @param src_pitch  int
---- @param dst_pixels ImSlice
---- @param dst_fmt    ImTextureFormat
---- @param dst_pitch  int
---- @param w          int
---- @param h          int
-function ImFontAtlasTextureBlockConvert(src_pixels, src_fmt, src_pitch, dst_pixels, dst_fmt, dst_pitch, w, h)
+--- @param src_pixels      unsigned_char[]
+--- @param src_fmt         ImTextureFormat
+--- @param src_pitch       int
+--- @param dst_pixels      unsigned_char[]
+--- @param dst_pixels_base int
+--- @param dst_fmt         ImTextureFormat
+--- @param dst_pitch       int
+--- @param w               int
+--- @param h               int
+function ImFontAtlasTextureBlockConvert(src_pixels, src_fmt, src_pitch, dst_pixels, dst_pixels_base, dst_fmt, dst_pitch, w, h)
     IM_ASSERT(src_pixels ~= nil and dst_pixels ~= nil)
+    local src_pixels_base = 1
     if src_fmt == dst_fmt then
         local line_sz = w * ImTextureDataGetFormatBytesPerPixel(src_fmt)
         for ny = h, 1, -1 do
-            IM_SLICE_COPY(dst_pixels, src_pixels, line_sz)
-            IM_SLICE_INC(src_pixels, src_pitch)
-            IM_SLICE_INC(dst_pixels, dst_pitch)
+            ImStd.memmove(dst_pixels, dst_pixels_base, src_pixels, src_pixels_base, line_sz)
+
+            src_pixels_base = src_pixels_base + src_pitch
+            dst_pixels_base = dst_pixels_base + dst_pitch
         end
     elseif src_fmt == ImTextureFormat.Alpha8 and dst_fmt == ImTextureFormat.RGBA32 then
         for ny = h, 1, -1 do
             for nx = w, 1, -1 do
-                local alpha = IM_SLICE_GET(src_pixels, 0)
-                IM_SLICE_INC(src_pixels, 1)
+                local alpha = src_pixels[src_pixels_base + 0]
+                src_pixels_base = src_pixels_base + 1
 
-                local rgba32 = IM_COL32(255, 255, 255, alpha)
-                IM_SLICE_SET(dst_pixels, 0, bit.band(rgba32, 0xFF))
-                IM_SLICE_SET(dst_pixels, 1, bit.band(bit.rshift(rgba32, 8), 0xFF))
-                IM_SLICE_SET(dst_pixels, 2, bit.band(bit.rshift(rgba32, 16), 0xFF))
-                IM_SLICE_SET(dst_pixels, 3, bit.band(bit.rshift(rgba32, 24), 0xFF))
-                IM_SLICE_INC(dst_pixels, 4)
+                write_u32(dst_pixels, dst_pixels_base, IM_COL32(255, 255, 255, alpha))
+                dst_pixels_base = dst_pixels_base + 4
             end
 
-            IM_SLICE_INC(src_pixels, src_pitch - w)
-            IM_SLICE_INC(dst_pixels, dst_pitch - w * 4)
+            src_pixels_base = src_pixels_base + (src_pitch - w)
+            dst_pixels_base = dst_pixels_base + (dst_pitch - w * 4)
         end
     elseif src_fmt == ImTextureFormat.RGBA32 and dst_fmt == ImTextureFormat.Alpha8 then
         for ny = h, 1, -1 do
             for nx = w, 1, -1 do
-                local alpha = IM_SLICE_GET(src_pixels, 3)
-                IM_SLICE_INC(src_pixels, 4)
+                local alpha = src_pixels[src_pixels_base + 3]
+                src_pixels_base = src_pixels_base + 4
 
-                IM_SLICE_SET(dst_pixels, 0, alpha)
-                IM_SLICE_INC(dst_pixels, 1)
+                dst_pixels[dst_pixels_base + 0] = alpha
+                dst_pixels_base = dst_pixels_base + 1
             end
 
-            IM_SLICE_INC(src_pixels, src_pitch - w * 4)
-            IM_SLICE_INC(dst_pixels, dst_pitch - w)
+            src_pixels_base = src_pixels_base + (src_pitch - w * 4)
+            dst_pixels_base = dst_pixels_base + (dst_pitch - w)
         end
     else
         IM_ASSERT(false)
@@ -626,36 +635,32 @@ end
 --- @param data            ImFontAtlasPostProcessData
 --- @param multiply_factor float
 function ImFontAtlasTextureBlockPostProcessMultiply(data, multiply_factor)
-    local pixels = data.Pixels
+    local pixels, pixels_base = data.Pixels, data._PixelsBase
     local pitch = data.Pitch
     if data.Format == ImTextureFormat.Alpha8 then
         for ny = data.Height, 1, -1 do
-            local p = pixels
+            local p = pixels_base
             for nx = data.Width, 1, -1 do
-                local v = ImMin(ImFloor(IM_SLICE_GET(p, 0) * multiply_factor), 255)
-                IM_SLICE_SET(p, 0, v)
+                local v = ImMin(ImFloor(pixels[p + 0] * multiply_factor), 255)
+                pixels[p + 0] = v
 
-                IM_SLICE_INC(p)
+                p = p + 1
             end
 
-            IM_SLICE_INC(pixels, pitch)
+            pixels_base = pixels_base + pitch
         end
     elseif data.Format == ImTextureFormat.RGBA32 then
         for ny = data.Height, 1, -1 do
-            local p = pixels
+            local p = pixels_base
             for nx = data.Width, 1, -1 do
-                local alpha = ImMin(ImFloor(IM_SLICE_GET(p, 3) * multiply_factor), 255)
+                local a = ImMin(ImFloor(pixels[p + 3] * multiply_factor), 255)
 
-                local rgba32 = IM_COL32(IM_SLICE_GET(p, 0), IM_SLICE_GET(p, 1), IM_SLICE_GET(p, 2), alpha)
-                IM_SLICE_SET(p, 0, bit.band(rgba32, 0xFF))
-                IM_SLICE_SET(p, 1, bit.band(bit.rshift(rgba32, 8), 0xFF))
-                IM_SLICE_SET(p, 2, bit.band(bit.rshift(rgba32, 16), 0xFF))
-                IM_SLICE_SET(p, 3, bit.band(bit.rshift(rgba32, 24), 0xFF))
+                write_u32(pixels, p, IM_COL32(pixels[p + 0], pixels[p + 1], pixels[p + 2], a))
 
-                IM_SLICE_INC(p, 4)
+                p = p + 4
             end
 
-            IM_SLICE_INC(pixels, pitch)
+            pixels_base = pixels_base + pitch
         end
     else
         IM_ASSERT(false)
@@ -678,7 +683,9 @@ function ImFontAtlasTextureBlockCopy(src_tex, src_x, src_y, dst_tex, dst_x, dst_
     IM_ASSERT(dst_x >= 0 and dst_x + w <= dst_tex.Width)
     IM_ASSERT(dst_y >= 0 and dst_y + h <= dst_tex.Height)
     for y = 0, h - 1 do
-        IM_SLICE_COPY(dst_tex:GetPixelsAt(dst_x, dst_y + y), src_tex:GetPixelsAt(src_x, src_y + y), w * dst_tex.BytesPerPixel)
+        local dst, dst_base = dst_tex:GetPixelsAt(dst_x, dst_y + y)
+        local src, src_base = src_tex:GetPixelsAt(src_x, src_y + y)
+        ImStd.memmove(dst, dst_base, src, src_base, w * dst_tex.BytesPerPixel)
     end
 end
 
@@ -725,14 +732,16 @@ end
 --- @param src        ImFontConfig
 --- @param glyph      ImFontGlyph
 --- @param r          ImTextureRect
---- @param src_pixels ImSlice
+--- @param src_pixels unsigned_char[]
 --- @param src_fmt    ImTextureFormat
 --- @param src_pitch  int
 local function ImFontAtlasBakedSetFontGlyphBitmap(atlas, baked, src, glyph, r, src_pixels, src_fmt, src_pitch)
     local tex = atlas.TexData
     IM_ASSERT(r.x + r.w <= tex.Width and r.y + r.h <= tex.Height)
-    ImFontAtlasTextureBlockConvert(src_pixels, src_fmt, src_pitch, tex:GetPixelsAt(r.x, r.y), tex.Format, tex:GetPitch(), r.w, r.h)
-    local pp_data = ImFontAtlasPostProcessData(atlas, baked.OwnerFont, src, baked, glyph, tex:GetPixelsAt(r.x, r.y), tex.Format, tex:GetPitch(), r.w, r.h)
+    local out_p, out_p_base = tex:GetPixelsAt(r.x, r.y)
+    IM_ASSERT(out_p ~= nil)
+    ImFontAtlasTextureBlockConvert(src_pixels, src_fmt, src_pitch, out_p, out_p_base, tex.Format, tex:GetPitch(), r.w, r.h)
+    local pp_data = ImFontAtlasPostProcessData(atlas, baked.OwnerFont, src, baked, glyph, out_p, out_p_base, tex.Format, tex:GetPitch(), r.w, r.h)
     ImFontAtlasTextureBlockPostProcess(pp_data)
     ImFontAtlasTextureBlockQueueUpload(atlas, tex, r.x, r.y, r.w, r.h)
 end
@@ -1197,11 +1206,9 @@ local function ImGui_ImplStbTrueType_FontBakedLoadGlyph(atlas, src, baked, _, co
 
         x0, y0, x1, y1 = stbtt.GetGlyphBitmapBox(bd_font_data.FontInfo, glyph_index, scale_for_raster_x, scale_for_raster_y)
         local builder = atlas.Builder
-        -- builder.TempBuffer:resize(w * h * 1)
-        local bitmap_pixels = builder.TempBuffer
-        IM_SLICE_FILL(bitmap_pixels, 0, w * h * 1)
-        -- TODO: no slices on pixels data
-        --- @diagnostic disable-next-line
+        builder.TempBuffer:resize(w * h * 1)
+        local bitmap_pixels = builder.TempBuffer.Data
+        ImStd.memset(bitmap_pixels, 0, w * h * 1)
         local sub_x, sub_y = stbtt.MakeGlyphBitmapSubpixelPrefilter(bd_font_data.FontInfo, bitmap_pixels, w, h, w,
             scale_for_raster_x, scale_for_raster_y, 0, 0, oversample_h, oversample_v, glyph_index)
 
@@ -1754,50 +1761,32 @@ function ImFontAtlasBuildUpdateTexDataLines(atlas)
         IM_ASSERT(pad_left + line_width + pad_right == r.w and y < r.h)
 
         if (add_and_draw and tex.Format == ImTextureFormat.Alpha8) then
-            local write_ptr = tex:GetPixelsAt(r.x, r.y + y) -- ImU8*
+            local write_ptr, write_ptr_base = tex:GetPixelsAt(r.x, r.y + y)
 
             for i = 0, pad_left - 1 do
-                IM_SLICE_SET(write_ptr, i, 0x00)
+                write_ptr[write_ptr_base + i] = 0x00
             end
 
             for i = 0, line_width - 1 do
-                IM_SLICE_SET(write_ptr, pad_left + i, 0xFF)
+                write_ptr[write_ptr_base + pad_left + i] = 0xFF
             end
 
             for i = 0, pad_right - 1 do
-                IM_SLICE_SET(write_ptr, pad_left + line_width + i, 0x00)
+                write_ptr[write_ptr_base + pad_left + line_width + i] = 0x00
             end
         elseif (add_and_draw and tex.Format == ImTextureFormat.RGBA32) then
-            local write_ptr = tex:GetPixelsAt(r.x, r.y + y) -- ImU32*
+            local write_ptr, write_ptr_base = tex:GetPixelsAt(r.x, r.y + y)
 
             for i = 0, pad_left - 1 do
-                local rgba32 = IM_COL32(255, 255, 255, 0)
-                local base = i * 4
-
-                IM_SLICE_SET(write_ptr, base + 0, bit.band(rgba32, 0xFF))
-                IM_SLICE_SET(write_ptr, base + 1, bit.band(bit.rshift(rgba32, 8), 0xFF))
-                IM_SLICE_SET(write_ptr, base + 2, bit.band(bit.rshift(rgba32, 16), 0xFF))
-                IM_SLICE_SET(write_ptr, base + 3, bit.band(bit.rshift(rgba32, 24), 0xFF))
+                write_u32(write_ptr, write_ptr_base + i * 4, IM_COL32(255, 255, 255, 0))
             end
 
             for i = 0, line_width - 1 do
-                local rgba32 = IM_COL32_WHITE
-                local base = (pad_left + i) * 4
-
-                IM_SLICE_SET(write_ptr, base + 0, bit.band(rgba32, 0xFF))
-                IM_SLICE_SET(write_ptr, base + 1, bit.band(bit.rshift(rgba32, 8), 0xFF))
-                IM_SLICE_SET(write_ptr, base + 2, bit.band(bit.rshift(rgba32, 16), 0xFF))
-                IM_SLICE_SET(write_ptr, base + 3, bit.band(bit.rshift(rgba32, 24), 0xFF))
+                write_u32(write_ptr, write_ptr_base + (pad_left + i) * 4, IM_COL32_WHITE)
             end
 
             for i = 0, pad_right - 1 do
-                local rgba32 = IM_COL32(255, 255, 255, 0)
-                local base = (pad_left + line_width + i) * 4
-
-                IM_SLICE_SET(write_ptr, base + 0, bit.band(rgba32, 0xFF))
-                IM_SLICE_SET(write_ptr, base + 1, bit.band(bit.rshift(rgba32, 8), 0xFF))
-                IM_SLICE_SET(write_ptr, base + 2, bit.band(bit.rshift(rgba32, 16), 0xFF))
-                IM_SLICE_SET(write_ptr, base + 3, bit.band(bit.rshift(rgba32, 24), 0xFF))
+                write_u32(write_ptr, write_ptr_base + (pad_left + line_width + i) * 4, IM_COL32(255, 255, 255, 0))
             end
         end
 
@@ -1813,7 +1802,7 @@ end
 --- @param y              int
 --- @param w              int
 --- @param h              int
---- @param in_str         ImSlice
+--- @param in_str         string[]
 --- @param in_marker_char string
 function ImFontAtlasBuildRenderBitmapFromString(atlas, x, y, w, h, in_str, in_marker_char)
     local tex = atlas.TexData
@@ -1821,36 +1810,28 @@ function ImFontAtlasBuildRenderBitmapFromString(atlas, x, y, w, h, in_str, in_ma
     IM_ASSERT(y >= 0 and y + h <= tex.Height)
 
     if tex.Format == ImTextureFormat.Alpha8 then
-        --- @type ImSlice<ImU8>
-        local out_p = tex:GetPixelsAt(x, y)
+        local out_p, out_p_base = tex:GetPixelsAt(x, y)
+        local str_base = 1
         for off_y = 0, h - 1 do
             for off_x = 0, w - 1 do
-                IM_SLICE_SET(out_p, off_x, (IM_SLICE_GET(in_str, off_x) == in_marker_char) and 0xFF or 0x00)
+                out_p[out_p_base + off_x] = (in_str[str_base + off_x] == in_marker_char) and 0xFF or 0x00
             end
 
-            IM_SLICE_INC(out_p, tex.Width)
-            IM_SLICE_INC(in_str, w)
+            out_p_base = out_p_base + tex.Width
+            str_base = str_base + w
         end
     elseif tex.Format == ImTextureFormat.RGBA32 then
-        --- @type ImSlice<ImU32>
-        local out_p = tex:GetPixelsAt(x, y)
+        local out_p, out_p_base = tex:GetPixelsAt(x, y)
+        local str_base = 1
         for off_y = 0, h - 1 do
             for off_x = 0, w - 1 do
-                local rgba32 = (IM_SLICE_GET(in_str, off_x) == in_marker_char) and IM_COL32_WHITE or IM_COL32_BLACK_TRANS
-
-                IM_SLICE_SET(out_p, off_x * 4 + 0, bit.band(rgba32, 0xFF))
-                IM_SLICE_SET(out_p, off_x * 4 + 1, bit.band(bit.rshift(rgba32, 8), 0xFF))
-                IM_SLICE_SET(out_p, off_x * 4 + 2, bit.band(bit.rshift(rgba32, 16), 0xFF))
-                IM_SLICE_SET(out_p, off_x * 4 + 3, bit.band(bit.rshift(rgba32, 24), 0xFF))
+                write_u32(out_p, out_p_base + off_x * 4, (in_str[str_base + off_x] == in_marker_char) and IM_COL32_WHITE or IM_COL32_BLACK_TRANS)
             end
 
-            IM_SLICE_INC(out_p, tex.Width * 4)
-            IM_SLICE_INC(in_str, w)
+            out_p_base = out_p_base + tex.Width * 4
+            str_base = str_base + w
         end
     end
-
-    -- We have changed the offset of in_str, now change it back to 0
-    IM_SLICE_RESET(in_str)
 end
 
 --- @param atlas ImFontAtlas
@@ -1865,7 +1846,7 @@ function ImFontAtlasBuildUpdateTexDataBasic(atlas)
         IM_ASSERT(builder.PackIdMouseCursors ~= ImFontAtlasRectId_Invalid)
 
         if bit.band(atlas.Flags, ImFontAtlasFlags.NoMouseCursors) ~= 0 then
-            ImFontAtlasBuildRenderBitmapFromString(atlas, r.x, r.y, 2, 2, IM_SLICE{"X", "X", "X", "X"}, "X")
+            ImFontAtlasBuildRenderBitmapFromString(atlas, r.x, r.y, 2, 2, {"X", "X", "X", "X"}, "X")
         else
             local x_for_white = r.x
             local x_for_black = r.x + FONT_ATLAS_DEFAULT_TEX_DATA_W + 1
@@ -2015,8 +1996,8 @@ function MT.ImTextureData:Create(format, w, h)
     self.Height = h
     self.BytesPerPixel = ImTextureDataGetFormatBytesPerPixel(format)
     self.UseColors = false
-    self.Pixels = IM_SLICE()
-    IM_SLICE_FILL(self.Pixels, 0, self.Width * self.Height * self.BytesPerPixel)
+    self.Pixels = {}
+    ImStd.memset(self.Pixels, 0, self.Width * self.Height * self.BytesPerPixel)
     self.UsedRect.x = 0
     self.UsedRect.y = 0
     self.UsedRect.w = 0
@@ -3596,7 +3577,7 @@ function MT.ImDrawList:AddPolyline(points, points_count, col, thickness, flags)
             -- Add vertices
             if use_texture then
                 -- Texture-based: need to implement TexUvLines lookup
-                local tex_uvs = self._Data.TexUvLines[integer_thickness + 1]
+                local tex_uvs = self._Data.TexUvLines[integer_thickness]
                 local tex_uv0 = ImVec2(tex_uvs.x, tex_uvs.y)
                 local tex_uv1 = ImVec2(tex_uvs.z, tex_uvs.w)
                 for i = 0, points_count - 1 do

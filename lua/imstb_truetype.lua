@@ -18,12 +18,6 @@ local stbtt_GetFontOffsetForIndex
 local stbtt_ScaleForPixelHeight
 local stbtt_FindGlyphIndex
 
---- @class stbtt_slice
---- @field data   table
---- @field offset int
-
-local function ptr_index_set(p, i, v) p.data[p.offset + i + 1] = v end
-
 local STBTT_MAX_OVERSAMPLE = 8
 
 --- @enum STBTT_PLATFORM_ID
@@ -297,7 +291,7 @@ end
 --- @field w      int
 --- @field h      int
 --- @field stride int
---- @field pixels stbtt_slice
+--- @field pixels unsigned_char[]
 
 --- @return stbtt__bitmap
 --- @nodiscard
@@ -1992,7 +1986,7 @@ local function stbtt__rasterize_sorted_edges(result, e, n, vsubsample, off_x, of
                 k = STBTT_fabs(k) * 255 + 0.5
                 m = trunc(k)
                 if m > 255 then m = 255 end
-                ptr_index_set(result.pixels, j * result.stride + i, unsigned_char(m))
+                result.pixels[j * result.stride + i + 1] = unsigned_char(m)
             end
         end
 
@@ -2298,7 +2292,7 @@ local function stbtt_Rasterize(result, flatness_in_pixels, vertices, num_verts, 
 end
 
 --- @param info       stbtt_fontinfo
---- @param output     stbtt_slice
+--- @param output     unsigned_char[]
 --- @param out_w      int
 --- @param out_h      int
 --- @param out_stride int
@@ -2423,7 +2417,7 @@ local function stbtt__oversample_shift(oversample)
 end
 
 --- @param info        stbtt_fontinfo
---- @param output      stbtt_slice
+--- @param output      unsigned_char[]
 --- @param out_w       int
 --- @param out_h       int
 --- @param out_stride  int
@@ -2438,11 +2432,11 @@ function stbtt_MakeGlyphBitmapSubpixelPrefilter(info, output, out_w, out_h, out_
     stbtt_MakeGlyphBitmapSubpixel(info, output, out_w - (prefilter_x - 1), out_h - (prefilter_y - 1), out_stride, scale_x, scale_y, shift_x, shift_y, glyph)
 
     if prefilter_x > 1 then
-        stbtt__h_prefilter(output.data, out_w, out_h, out_stride, prefilter_x)
+        stbtt__h_prefilter(output, out_w, out_h, out_stride, prefilter_x)
     end
 
     if prefilter_y > 1 then
-        stbtt__v_prefilter(output.data, out_w, out_h, out_stride, prefilter_y)
+        stbtt__v_prefilter(output, out_w, out_h, out_stride, prefilter_y)
     end
 
     local sub_x, sub_y

@@ -187,19 +187,22 @@ function ImStd.ImExponentialMovingAverage(avg, sample, n)
     return avg
 end
 
+--- @param s table # 1-based
+--- @param c any
+--- @param n int
+function ImStd.memset(s, c, n)
+    for i = 1, n do s[i] = c end
+end
+
 do
 
 local _memmove = function(dest, dest_start, src, src_start, count)
     if count <= 0 then return end
 
-    if dest == src then
-        if dest_start < src_start then
-            for i = 0, count - 1 do dest[dest_start + i] = src[src_start + i] end
-        else
-            for i = count - 1, 0, -1 do dest[dest_start + i] = src[src_start + i] end
-        end
-    else
-        for i = 0, count - 1 do dest[dest_start + i] = src[src_start + i] end
+    -- more compact instead of writing separate if-else and for loops
+    local c = (dest == src and dest_start >= src_start)
+    for i = (c and count - 1 or 0), (c and 0 or count - 1), (c and -1 or 1) do
+        dest[dest_start + i] = src[src_start + i]
     end
 end
 
@@ -213,7 +216,6 @@ if table.move then
     end
 end
 
---- @type fun(dest: table, dest_start: int, src: table, src_start: int, count: int)
 ImStd.memmove = _memmove
 
 end
@@ -788,7 +790,7 @@ end
 
 --- @class ImDrawListSharedData
 --- @field TexUvWhitePixel       ImVec2
---- @field TexUvLines            ImVec4
+--- @field TexUvLines            ImVec4[]
 --- @field FontAtlas             ImFontAtlas
 --- @field Font                  ImFont
 --- @field FontSize              float
@@ -848,7 +850,7 @@ end
 --- @field PackNodes                ImVector<stbrp_node>
 --- @field Rects                    ImVector<ImTextureRect>
 --- @field RectsIndex               ImVector<ImFontAtlasRectEntry>
---- @field TempBuffer               ImSlice                        # TODO: should be ImVector<char>
+--- @field TempBuffer               ImVector<char>
 --- @field RectsIndexFreeListStart  int
 --- @field RectsPackedCount         int
 --- @field RectsPackedSurface       int
@@ -876,7 +878,7 @@ function ImFontAtlasBuilder()
     this.PackNodes                = ImVector()
     this.Rects                    = ImVector()
     this.RectsIndex               = ImVector()
-    this.TempBuffer               = IM_SLICE() -- ImVector()
+    this.TempBuffer               = ImVector()
     this.RectsIndexFreeListStart  = -1
     this.RectsPackedCount         = 0
     this.RectsPackedSurface       = 0
@@ -2349,30 +2351,32 @@ function ImFontAtlasRectId_Make(index_idx, gen_idx)
 end
 
 --- @class ImFontAtlasPostProcessData
---- @field FontAtlas ImFontAtlas
---- @field Font      ImFont
---- @field FontSrc   ImFontConfig
---- @field FontBaked ImFontBaked
---- @field Glyph     ImFontGlyph
---- @field Pixels    ImSlice
---- @field Format    ImTextureFormat
---- @field Pitch     int
---- @field Width     int
---- @field Height    int
+--- @field FontAtlas   ImFontAtlas
+--- @field Font        ImFont
+--- @field FontSrc     ImFontConfig
+--- @field FontBaked   ImFontBaked
+--- @field Glyph       ImFontGlyph
+--- @field Pixels      unsigned_char[]
+--- @field _PixelsBase int             # LUA: in cpp code the `Pixels` is a pointer. we can do this to avoid creating another custom structure to mimic it
+--- @field Format      ImTextureFormat
+--- @field Pitch       int
+--- @field Width       int
+--- @field Height      int
 
---- @param atlas      ImFontAtlas
---- @param font       ImFont
---- @param font_src   ImFontConfig
---- @param font_baked ImFontBaked
---- @param glyph      ImFontGlyph
---- @param pixels     ImSlice
---- @param format     ImTextureFormat
---- @param pitch      int
---- @param width      int
---- @param height     int
+--- @param atlas       ImFontAtlas
+--- @param font        ImFont
+--- @param font_src    ImFontConfig
+--- @param font_baked  ImFontBaked
+--- @param glyph       ImFontGlyph
+--- @param pixels      unsigned_char[]
+--- @param pixels_base int
+--- @param format      ImTextureFormat
+--- @param pitch       int
+--- @param width       int
+--- @param height      int
 --- @return ImFontAtlasPostProcessData
 --- @nodiscard
-function ImFontAtlasPostProcessData(atlas, font, font_src, font_baked, glyph, pixels, format, pitch, width, height)
+function ImFontAtlasPostProcessData(atlas, font, font_src, font_baked, glyph, pixels, pixels_base, format, pitch, width, height)
     return {
         FontAtlas = atlas,
         Font      = font,
@@ -2381,6 +2385,7 @@ function ImFontAtlasPostProcessData(atlas, font, font_src, font_baked, glyph, pi
         Glyph     = glyph,
 
         Pixels = pixels,
+        _PixelsBase = pixels_base,
         Format = format,
         Pitch  = pitch,
         Width  = width,
