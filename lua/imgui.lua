@@ -12,9 +12,9 @@ local GImGui = nil
 
 getfenv().bit = bit32
 
-ImGui = {}
+local ImGui = {}
 
-ImStd = {} -- Contains functions that originally don't belong to cpp namespaces
+local ImStd = {} -- Contains functions that originally don't belong to cpp namespaces
 
 --- This executes Lua script at _filename and returns the result of the script.
 --- @param _filename string
@@ -9788,3 +9788,5 @@ function ImGui.DestroyPlatformWindows()
         ImGui.DestroyPlatformWindow(viewport)
     end
 end
+
+return ImGui, ImStd
