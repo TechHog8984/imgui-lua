@@ -10,11 +10,13 @@
 --- @type ImGuiContext?
 local GImGui = nil
 
-getfenv().bit = bit32
-
 local ImGui = {}
 
 local ImStd = {} -- Contains functions that originally don't belong to cpp namespaces
+
+getfenv().ImGui = ImGui
+getfenv().ImStd = ImStd
+getfenv().bit = bit32
 
 --- This executes Lua script at _filename and returns the result of the script.
 --- @param _filename string
