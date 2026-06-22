@@ -10,6 +10,8 @@
 --- @type ImGuiContext?
 local GImGui = nil
 
+getfenv().bit = bit32
+
 ImGui = {}
 
 ImStd = {} -- Contains functions that originally don't belong to cpp namespaces
@@ -22,6 +24,10 @@ function IM_INCLUDE(_filename) end
 --- [GMod] Platform specific include function
 if gmod then
     IM_INCLUDE = include
+else
+    IM_INCLUDE = function(filename)
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/TechHog8984/imgui-lua/refs/heads/main/lua/" .. filename))()
+    end
 end
 
 local function LUA_TableConstructorWrapper(T, start_idx, end_idx, userdata)
@@ -362,14 +368,13 @@ function ImHashStr(str, size, seed)
         -- `###` to reset back to initial hash value
         if c == 35 and string.byte(str, i + 1) == 35 and string.byte(str, i + 2) == 35 then
             hash = bit.bxor(FNV_OFFSET_BASIS, seed)
-            i = i + 2
-            goto CONTINUE
+            i = i + 3
+            continue
         end
 
         hash = bit.bxor(hash, c)
         hash = bit.band(hash * FNV_PRIME, 0xFFFFFFFF)
 
-        :: CONTINUE ::
         i = i + 1
     end
 
@@ -1723,17 +1728,15 @@ function ImGui.FocusTopMostWindowUnderOne(under_this_window, ignore_window, filt
     for i = start_idx, 1, -1 do
         local window = g.WindowsFocusOrder.Data[i]
         if window == ignore_window or not window.WasActive then
-            goto CONTINUE
+            continue
         end
         if filter_viewport ~= nil and window.Viewport ~= filter_viewport then
-            goto CONTINUE
+            continue
         end
         if bit.band(window.Flags, bit.bor(ImGuiWindowFlags.NoMouseInputs, ImGuiWindowFlags.NoNavInputs)) ~= bit.bor(ImGuiWindowFlags.NoMouseInputs, ImGuiWindowFlags.NoNavInputs) then
             ImGui.FocusWindow(window, flags)
             return
         end
-
-        :: CONTINUE ::
     end
     ImGui.FocusWindow(nil, flags)
 end
@@ -2268,15 +2271,13 @@ function MT.ImGuiIO:ClearInputKeys()
     local g = self.Ctx
     for key = ImGuiKey.NamedKey_BEGIN, ImGuiKey.NamedKey_END - 1 do
         if ImGui.IsMouseKey(key) then
-            goto CONTINUE
+            continue
         end
 
         local key_data = g.IO.KeysData[key - ImGuiKey.NamedKey_BEGIN]
         key_data.Down = false
         key_data.DownDuration = -1.0
         key_data.DownDurationPrev = -1.0
-
-        :: CONTINUE ::
     end
     self.KeyCtrl  = false
     self.KeyShift = false
@@ -2762,7 +2763,8 @@ function ImGui.UpdateKeyRoutingTable(rt)
             routing_entry.RoutingNext = ImGuiKeyOwner_NoOwner
             routing_entry.RoutingNextScore = 0
             if routing_entry.RoutingCurr == ImGuiKeyOwner_NoOwner then
-                goto CONTINUE
+                old_routing_idx = routing_entry.NextEntryIndex
+                continue
             end
             rt.EntriesNext:push_back(routing_entry)
 
@@ -2773,7 +2775,6 @@ function ImGui.UpdateKeyRoutingTable(rt)
                 end
             end
 
-            :: CONTINUE ::
             old_routing_idx = routing_entry.NextEntryIndex
         end
 
@@ -3070,7 +3071,7 @@ function ImGui.UpdateInputEvents(trickle_fast_inputs)
         local e = g.InputEventsQueue.Data[event_n]
         if e.Type == ImGuiInputEventType.MousePos then
             if g.IO.WantSetMousePos then
-                goto CONTINUE
+                continue
             end
             if trickle_fast_inputs and (mouse_button_changed ~= 0 or mouse_wheeled or key_changed or text_inputted) then
                 break
@@ -3106,7 +3107,7 @@ function ImGui.UpdateInputEvents(trickle_fast_inputs)
         elseif e.Type == ImGuiInputEventType.Key then
             -- Trickling Rule: Stop processing queued events if we got multiple action on the same button
             if bit.band(io.ConfigFlags, ImGuiConfigFlags.NoKeyboard) ~= 0 then
-                goto CONTINUE
+                continue
             end
 
             local key = e.Key.Key
@@ -3136,7 +3137,7 @@ function ImGui.UpdateInputEvents(trickle_fast_inputs)
             key_data.AnalogValue = e.Key.AnalogValue
         elseif e.Type == ImGuiInputEventType.Text then
             if bit.band(io.ConfigFlags, ImGuiConfigFlags.NoKeyboard) ~= 0 then
-                goto CONTINUE
+                continue
             end
             if trickle_fast_inputs and (mouse_button_changed ~= 0 or mouse_moved or mouse_wheeled) then
                 break
@@ -3156,8 +3157,6 @@ function ImGui.UpdateInputEvents(trickle_fast_inputs)
         end
 
         event_n = event_n + 1
-
-        :: CONTINUE ::
     end
 
     if event_n == g.InputEventsQueue.Size + 1 then
@@ -3639,7 +3638,7 @@ local function UpdateWindowManualResize(window, resize_grip_count, resize_grip_c
     end
     for border_n = 0, 3 do
         if bit.band(resize_border_mask, bit.lshift(1, border_n)) == 0 then
-            goto CONTINUE
+            continue
         end
         local def = ImGuiResizeBorderDef[border_n + 1]
         local axis
@@ -3716,8 +3715,6 @@ local function UpdateWindowManualResize(window, resize_grip_count, resize_grip_c
         if held then
             border_held = border_n
         end
-
-        :: CONTINUE ::
     end
     ImGui.PopID()
 
@@ -3917,13 +3914,13 @@ function ImGui.RenderMouseCursor(base_pos, base_scale, mouse_cursor, col_fill, c
 
     for _, viewport in g.Viewports:iter() do
         if not ImFontAtlasGetMouseCursorTexData(font_atlas, mouse_cursor, offset, size, uv_border, uv_fill) then
-            goto CONTINUE
+            continue
         end
 
         local pos = base_pos - offset
         local scale = base_scale * viewport.DpiScale
         if not viewport:GetMainRect():Overlaps(ImRect(pos, pos + ImVec2(size.x + 2, size.y + 2) * scale)) then
-            goto CONTINUE
+            continue
         end
 
         local draw_list = ImGui.GetForegroundDrawList(viewport)
@@ -3940,8 +3937,6 @@ function ImGui.RenderMouseCursor(base_pos, base_scale, mouse_cursor, col_fill, c
             draw_list:PathStroke(col_fill, 3.0 * scale)
         end
         draw_list:PopTexture()
-
-        :: CONTINUE ::
     end
 end
 
@@ -4180,7 +4175,9 @@ local function RenderWindowDecorations(window, title_bar_rect, titlebar_is_highl
         if handle_borders_and_resize_grips and (bit.band(flags, ImGuiWindowFlags.NoResize) == 0) then
             for i = 1, #ImGuiResizeGripDef do
                 local col = resize_grip_col[i]
-                if bit.band(col, IM_COL32_A_MASK) == 0 then goto CONTINUE end
+                if bit.band(col, IM_COL32_A_MASK) == 0 then
+                    continue
+                end
 
                 local inner_dir = ImGuiResizeGripDef[i].InnerDir
                 local corner = window.Pos + ImVec2_MulComp(ImGuiResizeGripDef[i].CornerPosN, window.Size)
@@ -4189,8 +4186,6 @@ local function RenderWindowDecorations(window, title_bar_rect, titlebar_is_highl
                 window.DrawList:PathLineTo(corner + ImVec2_MulComp(inner_dir, ((i % 2 == 0) and ImVec2(resize_grip_draw_size, border_inner) or ImVec2(border_inner, resize_grip_draw_size))))
                 window.DrawList:PathArcToFast(ImVec2(corner.x + inner_dir.x * (window_rounding + border_inner), corner.y + inner_dir.y * (window_rounding + border_inner)), window_rounding, ImGuiResizeGripDef[i].AngleMin12, ImGuiResizeGripDef[i].AngleMax12)
                 window.DrawList:PathFillConvex(col)
-
-                :: CONTINUE ::
             end
         end
 
@@ -5791,15 +5786,15 @@ local function FindHoveredWindowEx(pos, find_first_and_in_any_viewport)
     for i = g.Windows.Size, 1, -1 do
         window = g.Windows.Data[i]
         if not window.WasActive or window.Hidden then
-            goto CONTINUE
+            continue
         end
         if bit.band(window.Flags, ImGuiWindowFlags.NoMouseInputs) ~= 0 then
-            goto CONTINUE
+            continue
         end
 
         IM_ASSERT(window.Viewport)
         if (window.Viewport ~= g.MouseViewport) then
-            goto CONTINUE
+            continue
         end
         local hit_padding
         if bit.band(window.Flags, bit.bor(ImGuiWindowFlags.NoResize, ImGuiWindowFlags.AlwaysAutoResize)) ~= 0 then
@@ -5808,7 +5803,7 @@ local function FindHoveredWindowEx(pos, find_first_and_in_any_viewport)
             hit_padding = padding_for_resize
         end
         if not window.OuterRectClipped:ContainsWithPad(pos, hit_padding) then
-            goto CONTINUE
+            continue
         end
 
         if window.HitTestHoleSize.x ~= 0 then
@@ -5831,8 +5826,6 @@ local function FindHoveredWindowEx(pos, find_first_and_in_any_viewport)
                 break
             end
         end
-
-        :: CONTINUE ::
     end
 
     if (find_first_and_in_any_viewport == false and g.MovingWindow) then
@@ -6483,7 +6476,7 @@ local function FlattenDrawDataIntoSingleLayer(builder)
     for layer_n = 2, #builder.Layers do
         local layer = builder.Layers[layer_n]
         if layer:empty() then
-            goto CONTINUE
+            continue
         end
 
         for i = 1, layer.Size do
@@ -6493,8 +6486,6 @@ local function FlattenDrawDataIntoSingleLayer(builder)
         n = n + layer.Size
 
         layer:resize(0)
-
-        :: CONTINUE ::
     end
 end
 
@@ -6731,10 +6722,9 @@ function ImGui.EndFrame()
     g.WindowsTempSortBuffer:reserve(g.Windows.Size)
     for _, window in g.Windows:iter() do
         if window.Active and bit.band(window.Flags, ImGuiWindowFlags.ChildWindow) ~= 0 then -- if a child is active its parent will add it
-            goto CONTINUE
+            continue
         end
         AddWindowToSortBuffer(g.WindowsTempSortBuffer, window)
-        :: CONTINUE ::
     end
 
     IM_ASSERT(g.Windows.Size == g.WindowsTempSortBuffer.Size)
@@ -7508,21 +7498,19 @@ function ImGui.FindBlockingModal(window)
         local popup_data = g.OpenPopupStack.Data[i]
         local popup_window = popup_data.Window
         if popup_window == nil or bit.band(popup_window.Flags, ImGuiWindowFlags.Modal) == 0 then
-            goto CONTINUE
+            continue
         end
         if not popup_window.Active and not popup_window.WasActive then
-            goto CONTINUE
+            continue
         end
         if window == nil then
             return popup_window
         end
         if ImGui.IsWindowWithinBeginStackOf(window, popup_window) then
-            goto CONTINUE
+            continue
         end
 
         do return popup_window end
-
-        ::CONTINUE::
     end
     return nil
 end
@@ -7619,7 +7607,8 @@ function ImGui.ClosePopupsOverWindow(ref_window, restore_focus_to_window_under_p
         while popup_count_to_keep < g.OpenPopupStack.Size do
             local popup = g.OpenPopupStack.Data[popup_count_to_keep + 1]
             if not popup.Window then
-                goto CONTINUE
+                popup_count_to_keep = popup_count_to_keep + 1
+                continue
             end
 
             IM_ASSERT(bit.band(popup.Window.Flags, ImGuiWindowFlags.Popup) ~= 0)
@@ -7644,8 +7633,6 @@ function ImGui.ClosePopupsOverWindow(ref_window, restore_focus_to_window_under_p
             if not ref_window_is_descendent_of_popup then
                 break
             end
-
-            :: CONTINUE ::
 
             popup_count_to_keep = popup_count_to_keep + 1
         end
@@ -8817,7 +8804,7 @@ function ImGui.UpdateTryMergeWindowIntoHostViewport(window, viewport_dst)
 
     for _, viewport_obstructing in g.Viewports:iter() do
         if viewport_obstructing == viewport_src or viewport_obstructing == viewport_dst or not viewport_obstructing.PlatformWindowCreated then
-            goto CONTINUE
+            continue
         end
 
         if viewport_obstructing:GetMainRect():Overlaps(window:Rect()) then
@@ -8827,8 +8814,6 @@ function ImGui.UpdateTryMergeWindowIntoHostViewport(window, viewport_dst)
                 end
             end
         end
-
-        ::CONTINUE::
     end
 
     -- Move to the existing viewport, Move child/hosted windows as well (FIXME-OPT: iterate child)
@@ -9195,18 +9180,16 @@ function ImGui.UpdateViewportsEndFrame()
 
         if viewport.LastFrameActive < g.FrameCount or viewport.Size.x <= 0.0 or viewport.Size.y <= 0.0 then
             if i > 1 then  -- Always include main viewport in the list
-                goto CONTINUE
+                continue
             end
         end
         if viewport.Window and not ImGui.IsWindowActiveAndVisible(viewport.Window) then
-            goto CONTINUE
+            continue
         end
         if i > 1 then
             IM_ASSERT(viewport.Window ~= nil)
         end
         g.PlatformIO.Viewports:push_back(viewport)
-
-        ::CONTINUE::
     end
 
     g.Viewports.Data[1]:ClearRequestFlags()  -- Clear main viewport flags because UpdatePlatformWindows() won't do it and may not even be called
@@ -9305,11 +9288,10 @@ function ImGui.DestroyViewport(viewport)
     for i = 1, g.Windows.Size do
         local window = g.Windows.Data[i]
         if window.Viewport ~= viewport then
-            goto CONTINUE
+            continue
         end
         window.Viewport = nil
         window.ViewportOwned = false
-        ::CONTINUE::
     end
 
     if viewport == g.MouseLastHoveredViewport then
@@ -9575,12 +9557,12 @@ function ImGui.UpdatePlatformWindows()
         destroy_platform_window = destroy_platform_window or (viewport.Window and not ImGui.IsWindowActiveAndVisible(viewport.Window)) --[[@as bool]]
         if destroy_platform_window then
             ImGui.DestroyPlatformWindow(viewport)
-            goto CONTINUE
+            continue
         end
 
         -- New windows that appears directly in a new viewport won't always have a size on their first frame
         if viewport.LastFrameActive < g.FrameCount or viewport.Size.x <= 0 or viewport.Size.y <= 0 then
-            goto CONTINUE
+            continue
         end
 
         -- Create window
@@ -9650,8 +9632,6 @@ function ImGui.UpdatePlatformWindows()
 
         -- Clear request flags
         viewport:ClearRequestFlags()
-
-        ::CONTINUE::
     end
 end
 
@@ -9747,13 +9727,11 @@ function ImGui.FindPlatformMonitorForRect(rect)
         local overlapping_surface = overlapping_rect:GetWidth() * overlapping_rect:GetHeight()
 
         if overlapping_surface <= best_monitor_surface then
-            goto CONTINUE
+            continue
         end
 
         best_monitor_surface = overlapping_surface
         best_monitor_n = monitor_n
-
-        ::CONTINUE::
     end
 
     return best_monitor_n
