@@ -2052,7 +2052,8 @@ local function stbtt__rasterize(result, pts, wcount, windings, scale_x, scale_y,
             local b = j
             -- skip the edge if horizontal
             if pts[p + j].y == pts[p + k].y then
-                goto inner_continue
+                j = k
+                continue
             end
             -- add edge from j to k to the list
             n = n + 1
@@ -2075,7 +2076,6 @@ local function stbtt__rasterize(result, pts, wcount, windings, scale_x, scale_y,
             e[n].x1 = pts[p + b].x * scale_x + shift_x
             e[n].y1 = (pts[p + b].y * y_scale_inv + shift_y) * vsubsample
 
-            :: inner_continue ::
             j = k
         end
     end

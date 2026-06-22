@@ -66,7 +66,7 @@ local function sscanf(buffer, buffer_begin, format, result)
             end
             f = f + 1
 
-            goto outer_continue
+            continue
         end
 
         if _byte(format, f, f) ~= CHAR_PERCENT then
@@ -77,7 +77,7 @@ local function sscanf(buffer, buffer_begin, format, result)
                 return items_matched
             end
 
-            goto outer_continue
+            continue
         end
 
         -- encountered % in fmt
@@ -160,8 +160,6 @@ local function sscanf(buffer, buffer_begin, format, result)
             assigned = assigned + 1
             items_matched = items_matched + 1
         end
-
-        :: outer_continue ::
     end
 
     return items_matched

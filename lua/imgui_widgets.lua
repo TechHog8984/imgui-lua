@@ -2319,15 +2319,13 @@ function ImParseFormatSanitizeForScanning(fmt_in, fmt_out, fmt_out_size)
         fmt_in_begin = fmt_in_begin + 1
 
         if (not has_type and ((c >= 48 and c <= 57) or c == 46 or c == 43 or c == 35)) then
-            goto CONTINUE
+            continue
         end
         has_type = has_type or ((c >= 97 and c <= 122) or (c >= 65 and c <= 90))
         if c ~= 39 and c ~= 36 and c ~= 95 then
             fmt_out[fmt_out_begin] = c
             fmt_out_begin = fmt_out_begin + 1
         end
-
-        :: CONTINUE ::
     end
     -- fmt_out[fmt_out_begin] = 0
     return string.char(unpack(fmt_out)) -- FIXME: not ideal
@@ -3760,14 +3758,13 @@ local function InputTextLineIndexBuild(flags, line_index, buf, buf_end, wrap_wid
 
             s_eol = ImMemchr(buf, 10, s)
             if s_eol ~= nil then
-                goto CONTINUE
+                s = s_eol + 1
+                continue
             end
             s = s + ImStd.ImStrlen(buf) - s -- FIXME:
             trailing_line_already_counted = true
 
             do break end
-
-            :: CONTINUE ::
 
             s = s_eol + 1
         end
@@ -4251,15 +4248,13 @@ function ImGui.InputTextEx(label, hint, buf, buf_size, size_arg, flags, callback
                     -- Insert character if they pass filtering
                     local c = io.InputQueueCharacters[n]
                     if c == 9 then -- Skip Tab, see above
-                        goto CONTINUE
+                        continue
                     end
                     local ret2
                     c, ret2 = InputTextFilterCharacter(g, state, c, callback, callback_user_data)
                     if ret2 then
                         state:OnCharPressed(c)
                     end
-
-                    :: CONTINUE ::
                 end
             end
 
@@ -4410,7 +4405,7 @@ function ImGui.InputTextEx(label, hint, buf, buf_size, size_arg, flags, callback
                     i = i + in_len
                     c, ret2 = InputTextFilterCharacter(g, state, c, callback, callback_user_data, true)
                     if ret2 then
-                        goto CONTINUE
+                        continue
                     end
 
                     local c_utf8 = {0, 0, 0, 0, 0}
@@ -4418,8 +4413,6 @@ function ImGui.InputTextEx(label, hint, buf, buf_size, size_arg, flags, callback
                     local out_len = ImStd.ImStrlen(c_utf8)
                     clipboard_filtered:resize(clipboard_filtered.Size + out_len)
                     ImStd.memmove(clipboard_filtered.Data, clipboard_filtered.Size - out_len, c_utf8, 1, out_len)
-
-                    :: CONTINUE ::
                 end
                 if clipboard_filtered.Size > 0 then
                     clipboard_filtered:push_back(0)
@@ -4711,7 +4704,7 @@ function ImGui.InputTextEx(label, hint, buf, buf_size, size_arg, flags, callback
                     rect_width = rect_width + bg_eol_width
                 end
                 if rect_width == 0.0 then
-                    goto CONTINUE
+                    continue
                 end
 
                 local rect = ImRect()
@@ -4722,8 +4715,6 @@ function ImGui.InputTextEx(label, hint, buf, buf_size, size_arg, flags, callback
                 rect.Min.y = rect.Min.y + bg_offy_up
                 rect:ClipWith(clip_rect)
                 draw_window.DrawList:AddRectFilled(rect.Min, rect.Max, bg_color)
-
-                :: CONTINUE ::
             end
         end
     end

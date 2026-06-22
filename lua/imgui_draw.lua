@@ -4209,190 +4209,192 @@ end
 --- @param wrap_width float
 --- @param flags      ImDrawTextFlags
 function MT.ImFont:RenderText(draw_list, size, pos, col, clip_rect, text, text_begin, text_end, wrap_width, flags)
-:: begin ::
-    local x = pos.x
-    local y = pos.y
-    if y > clip_rect.w then
-        return
-    end
-    if bit.band(draw_list.Flags, ImDrawListFlags.TextNoPixelSnap) == 0 then
-        x = IM_TRUNC(x)
-        y = IM_TRUNC(y)
-    end
-
-    -- if not text_end then
-    -- end
-
-    local line_height = size
-    local baked = self:GetFontBaked(size)
-
-    local scale = size / baked.Size
-    local origin_x = x
-    local word_wrap_enabled = (wrap_width > 0.0)
-
-    local s = text_begin
-    if y + line_height < clip_rect.y then
-        while y + line_height < clip_rect.y and s < text_end do
-            local line_end = ImMemchr(text, '\n', s)
-            if word_wrap_enabled then
-                s = ImFontCalcWordWrapPositionEx(self, size, text, s, (line_end ~= nil) and line_end or text_end, wrap_width, flags)
-                s = ImTextCalcWordWrapNextLineStart(text, s, text_end, flags)
-            else
-                s = (line_end ~= nil) and (line_end + 1) or text_end
+    while true do
+            local x = pos.x
+            local y = pos.y
+            if y > clip_rect.w then
+                return
+            end
+            if bit.band(draw_list.Flags, ImDrawListFlags.TextNoPixelSnap) == 0 then
+                x = IM_TRUNC(x)
+                y = IM_TRUNC(y)
             end
 
-            y = y + line_height
-        end
-    end
+            -- if not text_end then
+            -- end
 
-    if text_end - s > 1e4 and not word_wrap_enabled then
-        local s_end = s
-        local y_end = y
-        while (y_end < clip_rect.w and s_end < text_end) do
-            local _end = ImMemchr(text, '\n', s_end)
-            s_end = (_end ~= nil) and (_end + 1) or text_end
-            y_end = y_end + line_height
-        end
+            local line_height = size
+            local baked = self:GetFontBaked(size)
 
-        text_end = s_end
-    end
+            local scale = size / baked.Size
+            local origin_x = x
+            local word_wrap_enabled = (wrap_width > 0.0)
 
-    if s == text_end then
-        return
-    end
+            local s = text_begin
+            if y + line_height < clip_rect.y then
+                while y + line_height < clip_rect.y and s < text_end do
+                    local line_end = ImMemchr(text, '\n', s)
+                    if word_wrap_enabled then
+                        s = ImFontCalcWordWrapPositionEx(self, size, text, s, (line_end ~= nil) and line_end or text_end, wrap_width, flags)
+                        s = ImTextCalcWordWrapNextLineStart(text, s, text_end, flags)
+                    else
+                        s = (line_end ~= nil) and (line_end + 1) or text_end
+                    end
 
-    local vtx_count_max = (text_end - s) * 4
-    local idx_count_max = (text_end - s) * 6
-    local idx_expected_size = draw_list.IdxBuffer.Size + idx_count_max
-    draw_list:PrimReserve(idx_count_max, vtx_count_max)
-    local vtx_write = draw_list._VtxWritePtr
-    local idx_write = draw_list._IdxWritePtr
-    local vtx_index = draw_list._VtxCurrentIdx
-    local cmd_count = draw_list.CmdBuffer.Size
-    local cpu_fine_clip = bit.band(flags, ImDrawTextFlags.CpuFineClip) ~= 0
-
-    local idx_data = draw_list.IdxBuffer.Data; local vtx_data = draw_list.VtxBuffer.Data
-
-    local color_untinted = bit.bor(col, bit.bnot(IM_COL32_A_MASK))
-
-    local word_wrap_eol
-
-    while s < text_end do
-        if word_wrap_enabled then
-            if not word_wrap_eol then
-                word_wrap_eol = ImFontCalcWordWrapPositionEx(self, size, text, s, text_end, wrap_width - (x - origin_x), flags)
-            end
-
-            if s >= word_wrap_eol then
-                x = origin_x
-                y = y + line_height
-                if y > clip_rect.w then
-                    break
+                    y = y + line_height
                 end
-                word_wrap_eol = nil
-                s = ImTextCalcWordWrapNextLineStart(text, s, text_end, flags)
-
-                continue
             end
-        end
 
-        local c = ImStrByte(text, s)
-        if c < 0x80 then
-            s = s + 1
-        else
-            local wanted, out_char = ImStd.ImTextCharFromUtf8(text, s, text_end)
-            c = out_char
-            s = s + wanted
-        end
-
-        if c < 32 then
-            if c == 10 then -- '\n'
-                x = origin_x
-                y = y + line_height
-                if y > clip_rect.w then
-                    break
+            if text_end - s > 1e4 and not word_wrap_enabled then
+                local s_end = s
+                local y_end = y
+                while (y_end < clip_rect.w and s_end < text_end) do
+                    local _end = ImMemchr(text, '\n', s_end)
+                    s_end = (_end ~= nil) and (_end + 1) or text_end
+                    y_end = y_end + line_height
                 end
 
-                continue
+                text_end = s_end
             end
 
-            if c == 13 then -- '\r'
-                continue
+            if s == text_end then
+                return
             end
-        end
 
-        local glyph = baked:FindGlyph(c)
+            local vtx_count_max = (text_end - s) * 4
+            local idx_count_max = (text_end - s) * 6
+            local idx_expected_size = draw_list.IdxBuffer.Size + idx_count_max
+            draw_list:PrimReserve(idx_count_max, vtx_count_max)
+            local vtx_write = draw_list._VtxWritePtr
+            local idx_write = draw_list._IdxWritePtr
+            local vtx_index = draw_list._VtxCurrentIdx
+            local cmd_count = draw_list.CmdBuffer.Size
+            local cpu_fine_clip = bit.band(flags, ImDrawTextFlags.CpuFineClip) ~= 0
 
-        local char_width = glyph.AdvanceX * scale
-        if glyph.Visible then
-            local x1 = x + glyph.X0 * scale
-            local x2 = x + glyph.X1 * scale
-            local y1 = y + glyph.Y0 * scale
-            local y2 = y + glyph.Y1 * scale
-            if x1 <= clip_rect.z and x2 >= clip_rect.x then
-                local u1 = glyph.U0
-                local v1 = glyph.V0
-                local u2 = glyph.U1
-                local v2 = glyph.V1
+            local idx_data = draw_list.IdxBuffer.Data; local vtx_data = draw_list.VtxBuffer.Data
 
-                if (cpu_fine_clip) then
-                    if (x1 < clip_rect.x) then
-                        u1 = u1 + (1.0 - (x2 - clip_rect.x) / (x2 - x1)) * (u2 - u1)
-                        x1 = clip_rect.x
+            local color_untinted = bit.bor(col, bit.bnot(IM_COL32_A_MASK))
+
+            local word_wrap_eol
+
+            while s < text_end do
+                if word_wrap_enabled then
+                    if not word_wrap_eol then
+                        word_wrap_eol = ImFontCalcWordWrapPositionEx(self, size, text, s, text_end, wrap_width - (x - origin_x), flags)
                     end
-                    if (y1 < clip_rect.y) then
-                        v1 = v1 + (1.0 - (y2 - clip_rect.y) / (y2 - y1)) * (v2 - v1)
-                        y1 = clip_rect.y
-                    end
-                    if (x2 > clip_rect.z) then
-                        u2 = u1 + ((clip_rect.z - x1) / (x2 - x1)) * (u2 - u1)
-                        x2 = clip_rect.z
-                    end
-                    if (y2 > clip_rect.w) then
-                        v2 = v1 + ((clip_rect.w - y1) / (y2 - y1)) * (v2 - v1)
-                        y2 = clip_rect.w
-                    end
-                    if (y1 >= y2) then
-                        x = x + char_width
+
+                    if s >= word_wrap_eol then
+                        x = origin_x
+                        y = y + line_height
+                        if y > clip_rect.w then
+                            break
+                        end
+                        word_wrap_eol = nil
+                        s = ImTextCalcWordWrapNextLineStart(text, s, text_end, flags)
 
                         continue
                     end
                 end
 
-                local glyph_col = glyph.Colored and color_untinted or col
+                local c = ImStrByte(text, s)
+                if c < 0x80 then
+                    s = s + 1
+                else
+                    local wanted, out_char = ImStd.ImTextCharFromUtf8(text, s, text_end)
+                    c = out_char
+                    s = s + wanted
+                end
 
-                do
-                    vtx_data[vtx_write + 0][1][1] = x1; vtx_data[vtx_write + 0][1][2] = y1; vtx_data[vtx_write + 0][3] = glyph_col; vtx_data[vtx_write + 0][2][1] = u1; vtx_data[vtx_write + 0][2][2] = v1;
-                    vtx_data[vtx_write + 1][1][1] = x2; vtx_data[vtx_write + 1][1][2] = y1; vtx_data[vtx_write + 1][3] = glyph_col; vtx_data[vtx_write + 1][2][1] = u2; vtx_data[vtx_write + 1][2][2] = v1;
-                    vtx_data[vtx_write + 2][1][1] = x2; vtx_data[vtx_write + 2][1][2] = y2; vtx_data[vtx_write + 2][3] = glyph_col; vtx_data[vtx_write + 2][2][1] = u2; vtx_data[vtx_write + 2][2][2] = v2;
-                    vtx_data[vtx_write + 3][1][1] = x1; vtx_data[vtx_write + 3][1][2] = y2; vtx_data[vtx_write + 3][3] = glyph_col; vtx_data[vtx_write + 3][2][1] = u1; vtx_data[vtx_write + 3][2][2] = v2;
-                    idx_data[idx_write + 0] = vtx_index; idx_data[idx_write + 1] = vtx_index + 1; idx_data[idx_write + 2] = vtx_index + 2;
-                    idx_data[idx_write + 3] = vtx_index; idx_data[idx_write + 4] = vtx_index + 2; idx_data[idx_write + 5] = vtx_index + 3;
-                    vtx_write = vtx_write + 4
-                    vtx_index = vtx_index + 4
-                    idx_write = idx_write + 6
+                if c < 32 then
+                    if c == 10 then -- '\n'
+                        x = origin_x
+                        y = y + line_height
+                        if y > clip_rect.w then
+                            break
+                        end
+
+                        continue
+                    end
+
+                    if c == 13 then -- '\r'
+                        continue
+                    end
+                end
+
+                local glyph = baked:FindGlyph(c)
+
+                local char_width = glyph.AdvanceX * scale
+                if glyph.Visible then
+                    local x1 = x + glyph.X0 * scale
+                    local x2 = x + glyph.X1 * scale
+                    local y1 = y + glyph.Y0 * scale
+                    local y2 = y + glyph.Y1 * scale
+                    if x1 <= clip_rect.z and x2 >= clip_rect.x then
+                        local u1 = glyph.U0
+                        local v1 = glyph.V0
+                        local u2 = glyph.U1
+                        local v2 = glyph.V1
+
+                        if (cpu_fine_clip) then
+                            if (x1 < clip_rect.x) then
+                                u1 = u1 + (1.0 - (x2 - clip_rect.x) / (x2 - x1)) * (u2 - u1)
+                                x1 = clip_rect.x
+                            end
+                            if (y1 < clip_rect.y) then
+                                v1 = v1 + (1.0 - (y2 - clip_rect.y) / (y2 - y1)) * (v2 - v1)
+                                y1 = clip_rect.y
+                            end
+                            if (x2 > clip_rect.z) then
+                                u2 = u1 + ((clip_rect.z - x1) / (x2 - x1)) * (u2 - u1)
+                                x2 = clip_rect.z
+                            end
+                            if (y2 > clip_rect.w) then
+                                v2 = v1 + ((clip_rect.w - y1) / (y2 - y1)) * (v2 - v1)
+                                y2 = clip_rect.w
+                            end
+                            if (y1 >= y2) then
+                                x = x + char_width
+
+                                continue
+                            end
+                        end
+
+                        local glyph_col = glyph.Colored and color_untinted or col
+
+                        do
+                            vtx_data[vtx_write + 0][1][1] = x1; vtx_data[vtx_write + 0][1][2] = y1; vtx_data[vtx_write + 0][3] = glyph_col; vtx_data[vtx_write + 0][2][1] = u1; vtx_data[vtx_write + 0][2][2] = v1;
+                            vtx_data[vtx_write + 1][1][1] = x2; vtx_data[vtx_write + 1][1][2] = y1; vtx_data[vtx_write + 1][3] = glyph_col; vtx_data[vtx_write + 1][2][1] = u2; vtx_data[vtx_write + 1][2][2] = v1;
+                            vtx_data[vtx_write + 2][1][1] = x2; vtx_data[vtx_write + 2][1][2] = y2; vtx_data[vtx_write + 2][3] = glyph_col; vtx_data[vtx_write + 2][2][1] = u2; vtx_data[vtx_write + 2][2][2] = v2;
+                            vtx_data[vtx_write + 3][1][1] = x1; vtx_data[vtx_write + 3][1][2] = y2; vtx_data[vtx_write + 3][3] = glyph_col; vtx_data[vtx_write + 3][2][1] = u1; vtx_data[vtx_write + 3][2][2] = v2;
+                            idx_data[idx_write + 0] = vtx_index; idx_data[idx_write + 1] = vtx_index + 1; idx_data[idx_write + 2] = vtx_index + 2;
+                            idx_data[idx_write + 3] = vtx_index; idx_data[idx_write + 4] = vtx_index + 2; idx_data[idx_write + 5] = vtx_index + 3;
+                            vtx_write = vtx_write + 4
+                            vtx_index = vtx_index + 4
+                            idx_write = idx_write + 6
+                    end
                 end
             end
+
+            x = x + char_width
         end
 
-        x = x + char_width
-    end
+        -- Edge case: calling RenderText() with unloaded glyphs triggering texture change. It doesn't happen via ImGui.* calls because CalcTextSize() is always used
+        if cmd_count ~= draw_list.CmdBuffer.Size then
+            IM_ASSERT(draw_list.CmdBuffer.Data[draw_list.CmdBuffer.Size].ElemCount == 0)
+            draw_list.CmdBuffer:pop_back()
+            draw_list:PrimUnreserve(idx_count_max, vtx_count_max)
+            draw_list:AddDrawCmd()
+            continue
+        end
 
-    -- Edge case: calling RenderText() with unloaded glyphs triggering texture change. It doesn't happen via ImGui.* calls because CalcTextSize() is always used
-    if cmd_count ~= draw_list.CmdBuffer.Size then
-        IM_ASSERT(draw_list.CmdBuffer.Data[draw_list.CmdBuffer.Size].ElemCount == 0)
-        draw_list.CmdBuffer:pop_back()
-        draw_list:PrimUnreserve(idx_count_max, vtx_count_max)
-        draw_list:AddDrawCmd()
-        goto begin
+        draw_list.VtxBuffer.Size = vtx_write - 1
+        draw_list.IdxBuffer.Size = idx_write - 1
+        draw_list.CmdBuffer.Data[draw_list.CmdBuffer.Size].ElemCount = draw_list.CmdBuffer.Data[draw_list.CmdBuffer.Size].ElemCount - (idx_expected_size - draw_list.IdxBuffer.Size)
+        draw_list._VtxWritePtr = vtx_write
+        draw_list._IdxWritePtr = idx_write
+        draw_list._VtxCurrentIdx = vtx_index
+        break
     end
-
-    draw_list.VtxBuffer.Size = vtx_write - 1
-    draw_list.IdxBuffer.Size = idx_write - 1
-    draw_list.CmdBuffer.Data[draw_list.CmdBuffer.Size].ElemCount = draw_list.CmdBuffer.Data[draw_list.CmdBuffer.Size].ElemCount - (idx_expected_size - draw_list.IdxBuffer.Size)
-    draw_list._VtxWritePtr = vtx_write
-    draw_list._IdxWritePtr = idx_write
-    draw_list._VtxCurrentIdx = vtx_index
 end
 
 --- @param draw_list ImDrawList
