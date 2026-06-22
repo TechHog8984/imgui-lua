@@ -28,7 +28,7 @@ if gmod then
     IM_INCLUDE = include
 else
     IM_INCLUDE = function(filename)
-        return loadstring(game:HttpGet("https://raw.githubusercontent.com/TechHog8984/imgui-lua/refs/heads/main/lua/" .. filename))()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/TechHog8984/imgui-lua/main/lua/" .. filename))()
     end
 end
 
