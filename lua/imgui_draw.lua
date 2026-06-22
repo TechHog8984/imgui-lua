@@ -554,17 +554,15 @@ function ImFontAtlasUpdateNewFrame(atlas, frame_count, renderer_has_textures)
         for src_n = 1, builder.BakedPool.Size do
             local p_src = builder.BakedPool.Data[src_n]
             if p_src.WantDestroy then
-                goto CONTINUE
+                continue
             end
             local p_dst = builder.BakedPool.Data[dst_n]
             dst_n = dst_n + 1
             if p_dst == p_src then
-                goto CONTINUE
+                continue
             end
             builder.BakedPool.Data[dst_n - 1] = p_src
             builder.BakedMap[p_src.BakedId] = p_src
-
-            :: CONTINUE ::
         end
 
         IM_ASSERT(dst_n - 1 + builder.BakedDiscardedCount == builder.BakedPool.Size)
@@ -766,14 +764,12 @@ local function ImFontAtlasBuildDiscardBakes(atlas, unused_frames)
     for baked_n = 1, builder.BakedPool.Size do
         local baked = builder.BakedPool[baked_n]
         if (baked.LastUsedFrame + unused_frames > atlas.Builder.FrameCount) then
-            goto CONTINUE
+            continue
         end
         if (baked.WantDestroy or (bit.band(baked.OwnerFont.Flags, ImFontFlags.LockBakedSizes) ~= 0)) then
-            goto CONTINUE
+            continue
         end
         ImFontAtlasBakedDiscard(atlas, baked.OwnerFont, baked)
-
-        :: CONTINUE ::
     end
 end
 
@@ -811,11 +807,11 @@ local function ImFontAtlasTextureRepack(atlas, w, h)
 
     for _, index_entry in builder.RectsIndex:iter() do
         if index_entry.IsUsed == false then
-            goto CONTINUE
+            continue
         end
         local old_r = old_rects[index_entry.TargetIndex + 1]
         if (old_r.w == 0 and old_r.h == 0) then
-            goto CONTINUE
+            continue
         end
         local new_r_id = ImFontAtlasPackAddRect(atlas, old_r.w, old_r.h, index_entry)
         if new_r_id == ImFontAtlasRectId_Invalid then
@@ -834,8 +830,6 @@ local function ImFontAtlasTextureRepack(atlas, w, h)
 
         local new_r = ImFontAtlasPackGetRect(atlas, new_r_id)
         ImFontAtlasTextureBlockCopy(old_tex, old_r.x, old_r.y, new_tex, new_r.x, new_r.y, new_r.w, new_r.h)
-
-        :: CONTINUE ::
     end
     IM_ASSERT(old_rects.Size == builder.Rects.Size + builder.RectsDiscardedCount)
     builder.RectsDiscardedCount = 0
@@ -1315,10 +1309,10 @@ function ImFontAtlasBakedGetClosestMatch(atlas, font, font_size, font_rasterizer
         for baked_n = 1, builder.BakedPool.Size do
             local baked = builder.BakedPool[baked_n]
             if (baked.OwnerFont ~= font or baked.WantDestroy) then
-                goto CONTINUE
+                continue
             end
             if (step_n == 0 and baked.RasterizerDensity ~= font_rasterizer_density) then
-                goto CONTINUE
+                continue
             end
             if (baked.Size > font_size and (closest_larger_match == nil or baked.Size < closest_larger_match.Size)) then
                 closest_larger_match = baked
@@ -1326,8 +1320,6 @@ function ImFontAtlasBakedGetClosestMatch(atlas, font, font_size, font_rasterizer
             if (baked.Size < font_size and (closest_smaller_match == nil or baked.Size > closest_smaller_match.Size)) then
                 closest_smaller_match = baked
             end
-
-            :: CONTINUE ::
         end
         if (closest_larger_match) then
             if (closest_smaller_match == nil or (closest_larger_match.Size >= font_size * 2.0 and closest_smaller_match.Size > font_size * 0.5)) then
@@ -1379,14 +1371,12 @@ local function ImFontAtlasFontDiscardBakes(atlas, font, unused_frames)
         for baked_n = 1, builder.BakedPool.Size do
             local baked = builder.BakedPool[baked_n]
             if baked.LastUsedFrame + unused_frames > atlas.Builder.FrameCount then
-                goto CONTINUE
+                continue
             end
             if (baked.OwnerFont ~= font) or baked.WantDestroy then
-                goto CONTINUE
+                continue
             end
             ImFontAtlasBakedDiscard(atlas, font, baked)
-
-            :: CONTINUE ::
         end
     end
 end
@@ -1608,7 +1598,7 @@ end
 local function ImFontAtlasUpdateDrawListsTextures(atlas, old_tex, new_tex)
     for _, shared_data in atlas.DrawListSharedDatas:iter() do
         if (shared_data.Context and not shared_data.Context.WithinFrameScope) then
-            goto CONTINUE
+            continue
         end
 
         for _, draw_list in shared_data.DrawLists:iter() do
@@ -1622,8 +1612,6 @@ local function ImFontAtlasUpdateDrawListsTextures(atlas, old_tex, new_tex)
                 end
             end
         end
-
-        :: CONTINUE ::
     end
 end
 
@@ -1919,7 +1907,7 @@ function ImFontAtlasBuildNotifySetFont(atlas, old_font, new_font)
             if old_font == nil and ctx.Font == nil and ctx.FontSizeBase == 0.0 then
                 -- While this should work either way, we save ourselves the bother / debugging confusion of running ImGui code so early when it is not needed.
                 -- Also fixes erroneously rewriting style.FontSizeBase during init if adding default fonts.
-                goto CONTINUE
+                continue
             end
 
             if ctx.IO.FontDefault == old_font then
@@ -1942,8 +1930,6 @@ function ImFontAtlasBuildNotifySetFont(atlas, old_font, new_font)
                 end
             end
         end
-
-        :: CONTINUE ::
     end
 end
 
@@ -2465,7 +2451,7 @@ function ImFontCalcWordWrapPositionEx(font, size, text, pos, text_end, wrap_widt
             if c == 13 then -- '\r'
                 s = next_s
 
-                goto CONTINUE
+                continue
             end
         end
 
@@ -2517,8 +2503,6 @@ function ImFontCalcWordWrapPositionEx(font, size, text, pos, text_end, wrap_widt
 
         prev_type = curr_type
         s = next_s
-
-        :: CONTINUE ::
     end
 
     if s == pos and s < text_end then
@@ -2578,8 +2562,6 @@ function ImFontCalcTextSizeEx(font, size, max_width, wrap_width, text, text_begi
                     break
                 end
                 word_wrap_eol = nil
-
-                goto CONTINUE
             end
         end
 
@@ -2601,11 +2583,11 @@ function ImFontCalcTextSizeEx(font, size, max_width, wrap_width, text, text_begi
                 break
             end
 
-            goto CONTINUE
+            continue
         end
 
         if c == 13 then -- '\r'
-            goto CONTINUE
+            continue
         end
 
         local char_width = (c < baked.IndexAdvanceX.Size) and baked.IndexAdvanceX.Data[c + 1] or -1.0
@@ -2620,8 +2602,6 @@ function ImFontCalcTextSizeEx(font, size, max_width, wrap_width, text, text_begi
         end
 
         line_width = line_width + char_width
-
-        :: CONTINUE ::
     end
 
     if (text_size.x < line_width) then
@@ -4312,7 +4292,7 @@ function MT.ImFont:RenderText(draw_list, size, pos, col, clip_rect, text, text_b
                 word_wrap_eol = nil
                 s = ImTextCalcWordWrapNextLineStart(text, s, text_end, flags)
 
-                goto CONTINUE
+                continue
             end
         end
 
@@ -4333,11 +4313,11 @@ function MT.ImFont:RenderText(draw_list, size, pos, col, clip_rect, text, text_b
                     break
                 end
 
-                goto CONTINUE
+                continue
             end
 
             if c == 13 then -- '\r'
-                goto CONTINUE
+                continue
             end
         end
 
@@ -4375,7 +4355,7 @@ function MT.ImFont:RenderText(draw_list, size, pos, col, clip_rect, text, text_b
                     if (y1 >= y2) then
                         x = x + char_width
 
-                        goto CONTINUE
+                        continue
                     end
                 end
 
@@ -4396,8 +4376,6 @@ function MT.ImFont:RenderText(draw_list, size, pos, col, clip_rect, text, text_b
         end
 
         x = x + char_width
-
-        :: CONTINUE ::
     end
 
     -- Edge case: calling RenderText() with unloaded glyphs triggering texture change. It doesn't happen via ImGui.* calls because CalcTextSize() is always used
@@ -4623,7 +4601,9 @@ function ImGui.RenderColorRectWithAlphaCheckerboard(draw_list, p_min, p_max, col
             local y2 = ImMin(y + grid_step, p_max.y)
 
             if y2 <= y1 then
-                goto OUTER_CONTINUE
+                y = y + grid_step
+                yi = yi + 1
+                continue
             end
 
             x_start = p_min.x + grid_off.x + ((yi + 1) % 2) * grid_step
@@ -4633,7 +4613,8 @@ function ImGui.RenderColorRectWithAlphaCheckerboard(draw_list, p_min, p_max, col
                 local x2 = ImMin(x + grid_step, p_max.x)
 
                 if x2 <= x1 then
-                    goto INNER_CONTINUE
+                    x = x + grid_step * 2.0
+                    continue
                 end
 
                 cell_flags = ImDrawFlags.RoundCornersNone
@@ -4654,12 +4635,8 @@ function ImGui.RenderColorRectWithAlphaCheckerboard(draw_list, p_min, p_max, col
                 end
                 draw_list:AddRectFilled(ImVec2(x1, y1), ImVec2(x2, y2), col_bg2, rounding, cell_flags)
 
-                :: INNER_CONTINUE ::
-
                 x = x + grid_step * 2.0
             end
-
-            :: OUTER_CONTINUE ::
 
             y = y + grid_step
             yi = yi + 1
